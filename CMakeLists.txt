@@ -11,6 +11,7 @@ find_package(Qt6 COMPONENTS
   Core
   Gui
   Widgets
+  Sql
   REQUIRED)
 
 add_executable(Magazyn main.cpp)
@@ -18,7 +19,9 @@ target_link_libraries(Magazyn
   Qt::Core
   Qt::Gui
   Qt::Widgets
+  Qt::Sql
 )
+
 
 if (WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     set(DEBUG_SUFFIX)
