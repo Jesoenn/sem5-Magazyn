@@ -14,7 +14,7 @@ Do `cmake-build-debug\plugins\sqldrivers`
 ### Brak plików
 W przypadku braku któregoś z powyższych plików, należy postępować zgodnie z poniższym materiałem.
  
-<a href="https://youtu.be/7YIJUL9pz2U">
+<a href="https://youtu.be/7YIJUL9pz2U" target="_blank">
   <img src="https://img.youtube.com/vi/7YIJUL9pz2U/maxresdefault.jpg" width="300">
 </a>
 
