@@ -1,64 +1,50 @@
 #include <QApplication>
-#include <QPushButton>
-#include <QtSql>
-#include <QtCore>
-#include <QDebug>
-#include <iostream>
-#include <QMessageBox>
+#include "controllers/AppController.h"
+
+/*
+ SCREENY!!!!!
+
+ Pamietac!
+- AppController zna kazdy widokw aplikacji
+- Widok na ogol zna wylacznie sam siebie
+
+ Przelaczanie widokow: QStackedWidget
+
+ W widoku jakims moge stworzyc QScrollArea jak jest duzy
+
+ Etapy tworzenia w widoku (widok extends QWidget):
+ 1. Tworze layout
+ 2. Przypisuje przyciski i tekst do layoutu
+ 3. w widoku wpisuje: setLayout(obiektlayout)
+
+ Layouty:
+ - QVBoxLayout -> jeden widget pod drugim
+ - QHBoxLayout -> poziomo - jeden obok drugiego
+ - QGridLayout -> Wiersze i kolumny!!
+ - QFormLayout -> TEKST | PRZYCISK
+
+
+ TODO: Logika aplikacji:
+ - AppController wywoluje logowanie, ma jako zmienna MainWindow
+ - Po zalogowaniu przydziela programowi odpowiedni widok i daje wskaznik na MainWindow
+ - Reszte robi rolesController
+
+ TODO: Pasek na gorze:
+ - Po zalogowaniu do mainWindow odpowiedni controller przekazuje jak bedzie wygladal pasek
+ -
+*/
+
+// slots w odpowiedzi na signal
+// signal - cos sie dzije w qt
+// emit -> emitowanie sygnalu
 
 int main(int argc, char *argv[]) {
-    QApplication a(argc, argv);
+    QApplication app(argc, argv);
 
-    QPushButton button("Magazyn ĄŁął :DDD!", nullptr);
-    button.resize(200, 100);
-    button.show();
+    AppController controller;
+    controller.start();
 
-    // Rejestracja sterownika MySQL
-    QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
-
-    // Dane połączenia
-    db.setHostName("localhost");
-    db.setPort(3306);
-    db.setDatabaseName("magazyn");
-    db.setUserName("root");
-    db.setPassword("root");
-
-    // Próba połączenia
-    if (!db.open()) {
-        QMessageBox::critical(nullptr, "Błąd", "Nie można połączyć z bazą!\n" +
-                                               db.lastError().text());
-        return -1;
-    }
-
-    // --- Zapytanie SELECT ---
-    QSqlQuery query(db);
-
-    if (!query.exec("SELECT * FROM items;")) {
-        QMessageBox::critical(nullptr, "Błąd zapytania",
-                              "Zapytanie nie powiodło się:\n" + query.lastError().text());
-        return -1;
-    }
-
-    // --- Budujemy tekst do wyświetlenia ---
-    QString result;
-    QSqlRecord rec = query.record();
-
-    // Nagłówki kolumn
-    for (int i = 0; i < rec.count(); i++) {
-        result += rec.fieldName(i) + "\t";
-    }
-    result += "\n----------------------------------------\n";
-
-    // Wiersze
-    while (query.next()) {
-        for (int i = 0; i < rec.count(); i++) {
-            result += query.value(i).toString() + "\t";
-        }
-        result += "\n";
-    }
-
-    // --- Wyświetlenie wyników w okienku ---
-    QMessageBox::information(nullptr, "Wyniki SELECT", result);
-
-    return QApplication::exec();
+    return app.exec();
 }
+
+

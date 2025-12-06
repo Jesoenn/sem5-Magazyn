@@ -1,0 +1,74 @@
+//
+// Created by jakub on 2025-12-05.
+//
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QMessageBox>
+#include "AppController.h"
+AppController::AppController() {
+    connectToDatabase();
+    mainWindow = new MainWindow();
+    mainWindow -> loadStyle();
+    loginView = new LoginView();
+
+    // Add views to mainWindow
+    mainWindow->addView(loginView);
+
+    // connect login signal
+    connect(loginView, &LoginView::loginRequested,
+            this, &AppController::handleLogin);
+}
+
+void AppController::start() {
+    mainWindow->showView(loginView);
+    mainWindow->show();
+}
+
+void AppController::handleLogin(QString user, QString pass) {
+    QSqlQuery query;
+    //TODO: hashowanie SHA256
+
+    // ready SQL statement
+    query.prepare("SELECT employee_id FROM employees WHERE login = :user AND password = :pass");
+    query.bindValue(":user", user);
+    query.bindValue(":pass", pass);
+
+    if (!query.exec()) {
+        qDebug() << "ERROR:" << query.lastError().text();
+        return;
+    }
+
+    if (query.next()) {
+        int employeeId = query.value("employee_id").toInt();
+        bool employed = query.value("emplyoed").toBool();
+        int jobId = query.value("job_id").toInt();
+
+        if (jobId == 1 && employed){
+            warehouseWorkerController = new WarehouseWorkerController(mainWindow, db, employeeId, jobId);
+            warehouseWorkerController->start();
+        }
+
+    } else {
+        loginView->loginFailed();
+    }
+}
+
+void AppController::connectToDatabase() {
+    db = QSqlDatabase::addDatabase("QMYSQL");
+    db.setHostName("localhost");
+    db.setPort(3306);
+    db.setUserName("root");
+    db.setPassword("root");
+    db.setDatabaseName("magazyn");
+
+    if (!db.open()) {
+        throw std::invalid_argument("Blad polaczenia z baza danych");
+    }
+
+    qDebug() << "Polaczono baze danych";
+}
+
+AppController::~AppController() {
+    delete warehouseWorkerController;
+
+}

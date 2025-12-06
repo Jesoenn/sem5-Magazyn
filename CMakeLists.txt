@@ -14,7 +14,21 @@ find_package(Qt6 COMPONENTS
   Sql
   REQUIRED)
 
-add_executable(Magazyn main.cpp)
+add_executable(Magazyn main.cpp
+        controllers/AppController.cpp
+        controllers/AppController.h
+        widgets/LoginView.cpp
+        widgets/LoginView.h
+        controllers/roles/WarehouseWorkerController.cpp
+        controllers/roles/WarehouseWorkerController.h
+        controllers/roles/ManagerController.cpp
+        controllers/roles/ManagerController.h
+        controllers/roles/AdminController.cpp
+        controllers/roles/AdminController.h
+        controllers/roles/ReceivingWorker.cpp
+        controllers/roles/ReceivingWorker.h
+        widgets/MainWindow.cpp
+        widgets/MainWindow.h)
 target_link_libraries(Magazyn
   Qt::Core
   Qt::Gui
