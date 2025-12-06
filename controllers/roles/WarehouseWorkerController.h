@@ -8,19 +8,39 @@
 
 #include <QSqlDatabase>
 #include "../../widgets/MainWindow.h"
+#include "../../widgets/warehouseworker/WarehouseWorkerMainMenuView.h"
+#include "../../widgets/warehouseworker/WarehouseWorkerOrderView.h"
 
 class WarehouseWorkerController: public QObject {
+    Q_OBJECT
 private:
     int employeeId, jobId;
     QSqlDatabase& db;
     MainWindow* mainWindow;
 
+    WarehouseWorkerMainMenuView* mainMenuView;
+    WarehouseWorkerOrderView* orderView;
+
+    void connectButtons();
+
+
+
 public:
     WarehouseWorkerController(MainWindow* mainWindow, QSqlDatabase& db, int employeeId, int jobId);
     void start();
 
-private slots:
+signals:
+    void logoutRequest();   // Logout signal emitted to AppController
 
+private slots:
+    void handleLogout();
+    void handleNewOrder();
+    void handleCurrentOrder();
+    void handleBackButton();
+    void handleOrderUpdate(int orderId, const QMap<int,int>& pickedMap);
+    void handleSubmitNewOrder();
+    void handleAssignVehicle();
+    void handleFreeVehicle();
 
 };
 

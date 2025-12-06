@@ -29,7 +29,7 @@ void AppController::handleLogin(QString user, QString pass) {
     //TODO: hashowanie SHA256
 
     // ready SQL statement
-    query.prepare("SELECT employee_id FROM employees WHERE login = :user AND password = :pass");
+    query.prepare("SELECT employee_id, employed, job_id FROM employees WHERE login = :user AND password = :pass");
     query.bindValue(":user", user);
     query.bindValue(":pass", pass);
 
@@ -40,12 +40,14 @@ void AppController::handleLogin(QString user, QString pass) {
 
     if (query.next()) {
         int employeeId = query.value("employee_id").toInt();
-        bool employed = query.value("emplyoed").toBool();
+        bool employed = query.value("employed").toBool();
         int jobId = query.value("job_id").toInt();
 
         if (jobId == 1 && employed){
             warehouseWorkerController = new WarehouseWorkerController(mainWindow, db, employeeId, jobId);
             warehouseWorkerController->start();
+            //Logout signal
+            connect(warehouseWorkerController, &WarehouseWorkerController::logoutRequest, this, &AppController::handleLogout);
         }
 
     } else {
@@ -71,4 +73,12 @@ void AppController::connectToDatabase() {
 AppController::~AppController() {
     delete warehouseWorkerController;
 
+}
+
+void AppController::handleLogout() {
+    if(warehouseWorkerController){
+        delete warehouseWorkerController;
+        warehouseWorkerController=nullptr;
+    }
+    mainWindow->showView(loginView);
 }

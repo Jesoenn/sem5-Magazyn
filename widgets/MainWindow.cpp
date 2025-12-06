@@ -5,11 +5,13 @@
 #include <QFile>
 #include <QDir>
 #include <QApplication>
+#include <iostream>
 #include "MainWindow.h"
 
 MainWindow::MainWindow(QWidget* parent): QMainWindow(parent){
     stack = new QStackedWidget();
     setCentralWidget(stack);
+    this->resize(800, 600);
 }
 
 void MainWindow::showView(QWidget *widget) {

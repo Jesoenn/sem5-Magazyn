@@ -29,6 +29,7 @@ public:
 
 private slots:
     void handleLogin(QString user, QString pass);
+    void handleLogout();
 };
 
 #endif //MAGAZYN_APPCONTROLLER_H
