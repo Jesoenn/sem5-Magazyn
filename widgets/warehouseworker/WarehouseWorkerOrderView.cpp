@@ -4,6 +4,7 @@
 
 #include <QMessageBox>
 #include <QIntValidator>
+#include <iostream>
 #include "WarehouseWorkerOrderView.h"
 
 WarehouseWorkerOrderView::WarehouseWorkerOrderView(QWidget* parent) : QWidget(parent) {
@@ -34,13 +35,13 @@ void WarehouseWorkerOrderView::addOrderItem(int itemId, const QString& itemName,
     QLineEdit* pickedEdit = new QLineEdit(QString::number(pickedQuantity), rowWidget);
     QLabel* availableLabel = new QLabel(QString::number(availableQuantity), rowWidget);
 
-    QIntValidator* validator = new QIntValidator(0, availableQuantity, pickedEdit);
+    QIntValidator* validator = new QIntValidator(0, quantity, pickedEdit);
     pickedEdit->setValidator(validator);
     // Auto validate
-    connect(pickedEdit, &QLineEdit::textChanged, [pickedEdit, quantity, availableQuantity](const QString &text){
+    connect(pickedEdit, &QLineEdit::textChanged, [pickedEdit, quantity](const QString &text){
         if (text.isEmpty()) return;
         int val = text.toInt();
-        int maxAllowed = qMin(quantity, availableQuantity); // Max allowed input
+        int maxAllowed = quantity; // Max allowed input
         if (val > maxAllowed) {
             pickedEdit->setText(QString::number(maxAllowed));
         } else if (val < 0) {

@@ -5,6 +5,7 @@
 #include <QSqlQuery>
 #include <iostream>
 #include <QDateTime>
+#include <QSqlError>
 #include "WarehouseWorkerController.h"
 
 
@@ -167,7 +168,7 @@ void WarehouseWorkerController::handleBackButton() {
 void WarehouseWorkerController::handleOrderUpdate(int orderId, const QMap<int,int>& pickedMap) {
     QSqlQuery query(db);
     for (auto it = pickedMap.begin(); it != pickedMap.end(); it++) {
-        query.prepare("UPDATE order_items SET picked_quantity = :picked WHERE order_item_id = :item_id and order_id = :order_id");
+        query.prepare("UPDATE order_items SET picked_quantity = :picked WHERE item_id = :item_id and order_id = :order_id");
         query.bindValue(":picked", it.value());
         query.bindValue(":item_id", it.key());
         query.bindValue(":order_id", orderId);

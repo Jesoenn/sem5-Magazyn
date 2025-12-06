@@ -23,20 +23,13 @@
  - QGridLayout -> Wiersze i kolumny!!
  - QFormLayout -> TEKST | PRZYCISK
 
-
- TODO: Logika aplikacji:
- - AppController wywoluje logowanie, ma jako zmienna MainWindow
- - Po zalogowaniu przydziela programowi odpowiedni widok i daje wskaznik na MainWindow
- - Reszte robi rolesController
-
- TODO: Pasek na gorze:
- - Po zalogowaniu do mainWindow odpowiedni controller przekazuje jak bedzie wygladal pasek
- -
 */
 
 // slots w odpowiedzi na signal
 // signal - cos sie dzije w qt
 // emit -> emitowanie sygnalu
+
+//sql.exec() NIE WYKONA SIE JEZELI JEST BLAD JAKIS
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
