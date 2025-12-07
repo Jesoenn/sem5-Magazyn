@@ -174,7 +174,7 @@ void WarehouseWorkerController::handleOrderUpdate(int orderId, const QMap<int,in
         query.bindValue(":order_id", orderId);
 
         if (!query.exec()) {
-            QString message = "Błąd dla " + QString::number(it.key());
+            QString message = "Błąd dla item_id: " + QString::number(it.key());
             orderView->viewError(message);
         }
     }

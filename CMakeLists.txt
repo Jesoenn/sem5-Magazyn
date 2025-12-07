@@ -25,8 +25,8 @@ add_executable(Magazyn main.cpp
         controllers/roles/ManagerController.h
         controllers/roles/AdminController.cpp
         controllers/roles/AdminController.h
-        controllers/roles/ReceivingWorker.cpp
-        controllers/roles/ReceivingWorker.h
+        controllers/roles/ReceivingWorkerController.cpp
+        controllers/roles/ReceivingWorkerController.h
         widgets/MainWindow.cpp
         widgets/MainWindow.h
         widgets/warehouseworker/WarehouseWorkerMainMenuView.cpp
@@ -34,7 +34,11 @@ add_executable(Magazyn main.cpp
         widgets/warehouseworker/WarehouseWorkerOrderView.cpp
         widgets/warehouseworker/WarehouseWorkerOrderView.h
         widgets/warehouseworker/WarehouseWorkerOrderView.h
-        widgets/warehouseworker/WarehouseWorkerOrderView.h)
+        widgets/warehouseworker/WarehouseWorkerOrderView.h
+        widgets/receivingworker/ReceivingWorkerMainMenuView.cpp
+        widgets/receivingworker/ReceivingWorkerMainMenuView.h
+        widgets/receivingworker/ReceivingWorkerOrderListView.cpp
+        widgets/receivingworker/ReceivingWorkerOrderListView.h)
 target_link_libraries(Magazyn
   Qt::Core
   Qt::Gui

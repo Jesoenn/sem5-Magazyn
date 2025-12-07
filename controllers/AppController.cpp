@@ -5,7 +5,7 @@
 #include <QSqlError>
 #include <QMessageBox>
 #include "AppController.h"
-AppController::AppController() {
+AppController::AppController(): warehouseWorkerController(nullptr), receivingWorkerController(nullptr) {
     connectToDatabase();
     mainWindow = new MainWindow();
     mainWindow -> loadStyle();
@@ -15,8 +15,7 @@ AppController::AppController() {
     mainWindow->addView(loginView);
 
     // connect login signal
-    connect(loginView, &LoginView::loginRequested,
-            this, &AppController::handleLogin);
+    connect(loginView, &LoginView::loginRequested,this, &AppController::handleLogin);
 }
 
 void AppController::start() {
@@ -48,6 +47,11 @@ void AppController::handleLogin(QString user, QString pass) {
             warehouseWorkerController->start();
             //Logout signal
             connect(warehouseWorkerController, &WarehouseWorkerController::logoutRequest, this, &AppController::handleLogout);
+        } else if (jobId == 2 && employed){
+            receivingWorkerController = new ReceivingWorkerController(mainWindow, db, employeeId, jobId);
+            receivingWorkerController->start();
+            //Logout signal
+            connect(receivingWorkerController, &ReceivingWorkerController::logoutRequest, this, &AppController::handleLogout);
         }
 
     } else {
@@ -72,13 +76,17 @@ void AppController::connectToDatabase() {
 
 AppController::~AppController() {
     delete warehouseWorkerController;
-
+    delete receivingWorkerController;
 }
 
 void AppController::handleLogout() {
-    if(warehouseWorkerController){
+    if(warehouseWorkerController != nullptr){
         delete warehouseWorkerController;
         warehouseWorkerController=nullptr;
+    }
+    else if (receivingWorkerController != nullptr){
+        delete receivingWorkerController;
+        receivingWorkerController=nullptr;
     }
     mainWindow->showView(loginView);
 }
