@@ -39,11 +39,11 @@ void ReceivingWorkerOrderListView::addOrderInfo(int orderId, const QString& empl
     QPushButton* checkButton = new QPushButton("Sprawdź", rowWidget);
     QPushButton* confirmButton = new QPushButton("Potwierdź", rowWidget);
 
-    rowLayout->addWidget(idLabel, 1, Qt::AlignCenter);
-    rowLayout->addWidget(employeeLabel, 2, Qt::AlignCenter);
-    rowLayout->addWidget(dateLabel, 2, Qt::AlignCenter);
-    rowLayout->addWidget(checkButton, 1, Qt::AlignCenter);
-    rowLayout->addWidget(confirmButton, 1, Qt::AlignCenter);
+    rowLayout->addWidget(idLabel, 1, Qt::AlignLeft);
+    rowLayout->addWidget(employeeLabel, 2, Qt::AlignLeft);
+    rowLayout->addWidget(dateLabel, 2, Qt::AlignLeft);
+    rowLayout->addWidget(checkButton, 1, Qt::AlignLeft);
+    rowLayout->addWidget(confirmButton, 1, Qt::AlignLeft);
 
     rowWidget->setLayout(rowLayout);
     ordersLayout->addWidget(rowWidget);

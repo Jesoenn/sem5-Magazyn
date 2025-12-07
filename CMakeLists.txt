@@ -38,7 +38,11 @@ add_executable(Magazyn main.cpp
         widgets/receivingworker/ReceivingWorkerMainMenuView.cpp
         widgets/receivingworker/ReceivingWorkerMainMenuView.h
         widgets/receivingworker/ReceivingWorkerOrderListView.cpp
-        widgets/receivingworker/ReceivingWorkerOrderListView.h)
+        widgets/receivingworker/ReceivingWorkerOrderListView.h
+        widgets/receivingworker/ReceivingWorkerDeliveryListView.cpp
+        widgets/receivingworker/ReceivingWorkerDeliveryListView.h
+        widgets/receivingworker/ReceivingWorkerDeliveryView.cpp
+        widgets/receivingworker/ReceivingWorkerDeliveryView.h)
 target_link_libraries(Magazyn
   Qt::Core
   Qt::Gui

@@ -1,0 +1,14 @@
+//
+// Created by jakub on 2025-12-07.
+//
+
+#ifndef MAGAZYN_RECEIVINGWORKERDELIVERYVIEW_H
+#define MAGAZYN_RECEIVINGWORKERDELIVERYVIEW_H
+
+
+class ReceivingWorkerDeliveryView {
+
+};
+
+
+#endif //MAGAZYN_RECEIVINGWORKERDELIVERYVIEW_H

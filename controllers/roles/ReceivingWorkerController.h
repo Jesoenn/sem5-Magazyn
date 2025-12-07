@@ -12,6 +12,7 @@
 #include "../../widgets/receivingworker/ReceivingWorkerMainMenuView.h"
 #include "../../widgets/receivingworker/ReceivingWorkerOrderListView.h"
 #include "../../widgets/warehouseworker/WarehouseWorkerOrderView.h"
+#include "../../widgets/receivingworker/ReceivingWorkerDeliveryListView.h"
 
 class ReceivingWorkerController: public QObject{
     Q_OBJECT
@@ -23,6 +24,7 @@ private:
     ReceivingWorkerMainMenuView* mainMenuView;
     ReceivingWorkerOrderListView* orderListView;
     WarehouseWorkerOrderView* orderView;
+    ReceivingWorkerDeliveryListView* deliveryListView;
 
     void connectButtons();
 public:
@@ -47,6 +49,9 @@ private slots:
 
     //OrderView
     void handleOrderUpdate(int orderId, const QMap<int,int>& pickedMap);
+
+    //DeliveryListView
+    void fillDelivery(int orderId);
 
     //All
     void handleBackButton();

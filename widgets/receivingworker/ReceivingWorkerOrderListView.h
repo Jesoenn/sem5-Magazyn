@@ -12,17 +12,19 @@
 #include <QLabel>
 #include <QMap>
 
-struct DeliveryRowWidgets {
-    QLabel* orderIdLabel;
-    QLabel* employeeLabel;
-    QLabel* dateLabel;
-    QPushButton* checkButton;
-    QPushButton* confirmButton;
-};
+
 
 class ReceivingWorkerOrderListView : public QWidget {
     Q_OBJECT
 private:
+    struct DeliveryRowWidgets {
+        QLabel* orderIdLabel;
+        QLabel* employeeLabel;
+        QLabel* dateLabel;
+        QPushButton* checkButton;
+        QPushButton* confirmButton;
+    };
+
     QVBoxLayout* mainLayout;
     QPushButton* backButton;
     QVBoxLayout* ordersLayout;

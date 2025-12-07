@@ -16,10 +16,12 @@ ReceivingWorkerController::ReceivingWorkerController(MainWindow* mainWindow, QSq
     mainMenuView = new ReceivingWorkerMainMenuView();
     orderListView = new ReceivingWorkerOrderListView();
     orderView = new WarehouseWorkerOrderView();
+    deliveryListView = new ReceivingWorkerDeliveryListView();
 
     mainWindow->addView(mainMenuView);
     mainWindow->addView(orderListView);
     mainWindow->addView(orderView);
+    mainWindow->addView(deliveryListView);
     connectButtons();
 }
 
@@ -78,10 +80,11 @@ void ReceivingWorkerController::connectButtons() {
     qRegisterMetaType<QMap<int,int>>();
     connect(orderView, &WarehouseWorkerOrderView::submitOrder,this, &ReceivingWorkerController::handleOrderUpdate);
 
-// Z INNYCH WIDOKOW
-//    connect(orderView, &WarehouseWorkerOrderView::backToMainMenu, this, &WarehouseWorkerController::handleBackButton);
-//    qRegisterMetaType<QMap<int,int>>();
-//    connect(orderView, &WarehouseWorkerOrderView::submitOrder,this, &WarehouseWorkerController::handleOrderUpdate);
+    //DeliveryListView
+    connect(deliveryListView, &ReceivingWorkerDeliveryListView::backToMainMenu, this, &ReceivingWorkerController::handleBackButton);
+    connect(deliveryListView, &ReceivingWorkerDeliveryListView::fillDelivery, this, &ReceivingWorkerController::fillDelivery);
+
+
 
 }
 
@@ -90,115 +93,39 @@ void ReceivingWorkerController::handleLogout() {
 }
 
 void ReceivingWorkerController::handleNewDelivery() {
-    //TODO: Stworzenie nowego zamowienia i wyswietlenie go?
-    qDebug()<<"Stworzenie nowego zamowienia jezeli nie mam obecnego";
-
-//    QSqlQuery query(db);
-//
-//    //Check active order
-//    query.prepare("SELECT COUNT(*) FROM orders WHERE assigned_employee_id = ? AND status = 'realizacja'");
-//    query.addBindValue(employeeId);
-//    if (!query.exec()) {
-//        mainMenuView->viewError("Błąd przy sprawdzaniu aktywnych zamówień");
-//        return;
-//    }
-//    if (query.next() && query.value(0).toInt() > 0) {
-//        mainMenuView->viewError("Masz już aktywne zamówienie do realizacji");
-//        return;
-//    }
-//
-//    // Get one order with "nowe" status to employee
-//    query.prepare("SELECT order_id FROM orders WHERE assigned_employee_id = ? AND status = 'nowe' LIMIT 1");
-//    query.addBindValue(employeeId);
-//    if (!query.exec()) {
-//        mainMenuView->viewError("Błąd przy pobieraniu nowego zamówienia");
-//        return;
-//    }
-//
-//    if (query.next()) {
-//        int newOrderId = query.value("order_id").toInt();
-//
-//        // Assign order to employee
-//        QSqlQuery updateQuery(db);
-//        updateQuery.prepare("UPDATE orders SET assigned_employee_id = ?, status = 'realizacja' WHERE order_id = ?");
-//        updateQuery.addBindValue(employeeId);
-//        updateQuery.addBindValue(newOrderId);
-//
-//        if (!updateQuery.exec()) {
-//            mainMenuView->viewError("Błąd przy przypisywaniu nowego zamówienia");
-//            return;
-//        }
-//        start();
-//    } else {
-//        mainMenuView->viewError("Brak dostępnych nowych zamówień");
-//    }
+    QSqlQuery query(db);
+    query.prepare("INSERT INTO deliveries (employee_id) VALUES (?)");
+    query.addBindValue(employeeId);
+    if (!query.exec()) {
+        mainMenuView->viewError("Błąd przy tworzeniu nowej dostawy: " + query.lastError().text());
+        return;
+    }
+    handleDeliveries(); //View all deliveries
 }
 
 
 void ReceivingWorkerController::handleDeliveries() {
-    // TODO: Przejscie do widoku listy zamowien
-    qDebug() << "Obecne zamowienie";
+    deliveryListView->clearDeliveries();
 
-//
-//    if (!query.exec()) {
-//        mainMenuView->viewError("Błąd przy pobieraniu zamówienia");
-//        return;
-//    } else if (query.exec() && !query.next()) {
-//        QString message = "Brak aktywnego zamowienia";
-//        mainMenuView->viewError(message);
-//        return;
-//    }
-//
-//    // Order information
-//    int orderId = query.value("order_id").toInt();
-//    QDateTime date = query.value("creation_date").toDateTime();
-//    QString creationDate = date.toString("dd.MM.yyyy HH:mm");   // Format date
-//    QString createdByName = query.value("created_by_name").toString();
-//
-//    // Items in order
-//    QSqlQuery orderItemsQuery(db);
-//    orderItemsQuery.prepare("SELECT * FROM view_order_items WHERE order_id = ?");
-//    orderItemsQuery.addBindValue(orderId);
-//
-//    if (!orderItemsQuery.exec()) {
-//        mainMenuView->viewError("Błąd przy pobieraniu zamówienia");
-//        return;
-//    }
-//
-//    orderView->setOrderInfo(orderId, creationDate, createdByName);
-//
-//    while (orderItemsQuery.next()) {
-//        int itemId = orderItemsQuery.value("item_id").toInt();
-//        QString itemName = orderItemsQuery.value("item_name").toString();
-//        int quantity = orderItemsQuery.value("quantity").toInt();
-//        int pickedQuantity = orderItemsQuery.value("picked_quantity").toInt();
-//        int availableQuantity = orderItemsQuery.value("available_quantity").toInt();
-//        orderView->addOrderItem(itemId, itemName, quantity, pickedQuantity, availableQuantity);
-//    }
-//
-//    mainWindow->showView(orderView);
+    QSqlQuery query(db);
+    query.prepare("SELECT delivery_id, delivery_date FROM deliveries ORDER BY delivery_id DESC");
+    if (!query.exec()) {
+        mainMenuView->viewError("Błąd przy pobieraniu dostaw");
+        return;
+    }
+
+    while (query.next()) {
+        int deliveryId = query.value("delivery_id").toInt();
+        QDateTime deliveryDate = query.value("delivery_date").toDateTime();
+        deliveryListView->addDeliveryInfo(deliveryId, deliveryDate);
+    }
+
+    mainWindow->showView(deliveryListView);
 }
 
 void ReceivingWorkerController::handleBackButton() {
     start();
 }
-
-//void ReceivingWorkerController::handleDeliveryUpdate(int orderId, const QMap<int,int>& pickedMap) {
-//    QSqlQuery query(db);
-//    for (auto it = pickedMap.begin(); it != pickedMap.end(); it++) {
-//        query.prepare("UPDATE order_items SET picked_quantity = :picked WHERE item_id = :item_id and order_id = :order_id");
-//        query.bindValue(":picked", it.value());
-//        query.bindValue(":item_id", it.key());
-//        query.bindValue(":order_id", orderId);
-//
-//        if (!query.exec()) {
-//            QString message = "Błąd dla item_id: " + QString::number(it.key());
-//            orderView->viewError(message);
-//        }
-//    }
-//
-//    handleBackButton(); // back to main menu
-//}
 
 void ReceivingWorkerController::handleAssignVehicle() {
     QSqlQuery query(db);
@@ -225,8 +152,6 @@ void ReceivingWorkerController::handleFreeVehicle() {
 }
 
 void ReceivingWorkerController::handleVerifyOrders() {
-    //TODO: Wyswietla widok listy zamowien z oznaczeniem "gotowe"
-    //TODO: Przypisac przyciski odpowiednio
     orderListView->clearOrders();   // clear old orders
 
     //Get orders marked as finished ("gotowe")
@@ -315,4 +240,10 @@ void ReceivingWorkerController::handleOrderUpdate(int orderId, const QMap<int,in
     }
 
     handleVerifyOrders(); // back to viewing all orders
+}
+
+void ReceivingWorkerController::fillDelivery(int orderId) {
+    //TODO DOKONCZYC
+    qDebug()<<"Chce uzupelnic "<<orderId;
+
 }
