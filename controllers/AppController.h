@@ -12,6 +12,7 @@
 #include "../widgets/LoginView.h"
 #include "roles/WarehouseWorkerController.h"
 #include "roles/ReceivingWorkerController.h"
+#include "roles/ManagerController.h"
 
 class AppController: public QObject {
 private:
@@ -22,6 +23,7 @@ private:
     //Jobs
     WarehouseWorkerController* warehouseWorkerController;
     ReceivingWorkerController* receivingWorkerController;
+    ManagerController* managerController;
 
 public:
     ~AppController();

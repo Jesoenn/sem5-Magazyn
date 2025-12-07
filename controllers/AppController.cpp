@@ -5,7 +5,8 @@
 #include <QSqlError>
 #include <QMessageBox>
 #include "AppController.h"
-AppController::AppController(): warehouseWorkerController(nullptr), receivingWorkerController(nullptr) {
+AppController::AppController():
+    warehouseWorkerController(nullptr), receivingWorkerController(nullptr), managerController(nullptr) {
     connectToDatabase();
     mainWindow = new MainWindow();
     mainWindow -> loadStyle();
@@ -52,6 +53,11 @@ void AppController::handleLogin(QString user, QString pass) {
             receivingWorkerController->start();
             //Logout signal
             connect(receivingWorkerController, &ReceivingWorkerController::logoutRequest, this, &AppController::handleLogout);
+        } else if (jobId == 3 && employed){
+            managerController = new ManagerController(mainWindow, db, employeeId, jobId);
+            managerController->start();
+            //Logout signal
+            connect(managerController, &ManagerController::logoutRequest, this, &AppController::handleLogout);
         }
 
     } else {
@@ -77,6 +83,7 @@ void AppController::connectToDatabase() {
 AppController::~AppController() {
     delete warehouseWorkerController;
     delete receivingWorkerController;
+    delete managerController;
 }
 
 void AppController::handleLogout() {
@@ -87,6 +94,10 @@ void AppController::handleLogout() {
     else if (receivingWorkerController != nullptr){
         delete receivingWorkerController;
         receivingWorkerController=nullptr;
+    }
+    else if (managerController != nullptr){
+        delete managerController;
+        managerController = nullptr;
     }
     mainWindow->showView(loginView);
 }
