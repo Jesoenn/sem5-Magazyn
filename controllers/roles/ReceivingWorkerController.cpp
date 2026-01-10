@@ -10,8 +10,8 @@
 #include <QDebug>
 
 
-ReceivingWorkerController::ReceivingWorkerController(MainWindow* mainWindow, QSqlDatabase& db, int employeeId, int jobId):
-        mainWindow(mainWindow), db(db), employeeId(employeeId), jobId(jobId) {
+ReceivingWorkerController::ReceivingWorkerController(MainWindow* mainWindow, QSqlDatabase& db, ReceivingWorkerDatabase& receivingWorkerDb, int employeeId, int jobId):
+        mainWindow(mainWindow), db(db), receivingWorkerDb(receivingWorkerDb), employeeId(employeeId), jobId(jobId) {
     //Setup views
     mainMenuView = new ReceivingWorkerMainMenuView();
     orderListView = new ReceivingWorkerOrderListView();
@@ -28,22 +28,18 @@ ReceivingWorkerController::ReceivingWorkerController(MainWindow* mainWindow, QSq
 }
 
 void ReceivingWorkerController::start() {
-    QSqlQuery query(db);
-    query.prepare("SELECT first_name, last_name, job, vehicle_id FROM view_employees_info WHERE employee_id = ?");
-    query.addBindValue(employeeId);
-    if (query.exec() && query.next()) {
-        mainMenuView->setEmployeeInfo(employeeId, query.value("first_name").toString(), query.value("last_name").toString(), query.value("job").toString());
-        QVariant vehicleVar = query.value("vehicle_id");
-        if (vehicleVar.isNull()) {
-            mainMenuView->setAssignedVehicle("Brak przypisanego pojazdu");
-            mainMenuView->showAssignVehicleButton(true);
-            mainMenuView->showFreeVehicleButton(false);
-        } else {
-            mainMenuView->setAssignedVehicle(vehicleVar.toString());
-            mainMenuView->showAssignVehicleButton(false);
-            mainMenuView->showFreeVehicleButton(true);
-        }
+    std::vector<QString> employeeInfo = receivingWorkerDb.getEmployeeInfo(employeeId);
+    mainMenuView->setEmployeeInfo(employeeId, employeeInfo[1], employeeInfo[2], employeeInfo[3]);
+    if (employeeInfo[4] == "null") {
+        mainMenuView->setAssignedVehicle("Brak przypisanego pojazdu");
+        mainMenuView->showAssignVehicleButton(true);
+        mainMenuView->showFreeVehicleButton(false);
+    } else {
+        mainMenuView->setAssignedVehicle(employeeInfo[4]);
+        mainMenuView->showAssignVehicleButton(false);
+        mainMenuView->showFreeVehicleButton(true);
     }
+
     mainWindow->showView(mainMenuView);
 }
 
@@ -101,32 +97,30 @@ void ReceivingWorkerController::handleLogout() {
 }
 
 void ReceivingWorkerController::handleNewDelivery() {
-    QSqlQuery query(db);
-    query.prepare("INSERT INTO deliveries (employee_id) VALUES (?)");
-    query.addBindValue(employeeId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy tworzeniu nowej dostawy: " + query.lastError().text());
+    try{
+        receivingWorkerDb.newDelivery(employeeId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
+
     handleDeliveries(); //View all deliveries
 }
 
 
 void ReceivingWorkerController::handleDeliveries() {
     deliveryListView->clearDeliveries();
-
-    QSqlQuery query(db);
-    query.prepare("SELECT delivery_id, delivery_date FROM deliveries WHERE employee_id = ? ORDER BY delivery_id DESC");
-    query.addBindValue(employeeId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu dostaw");
+    std::vector<std::vector<QString>> deliveries;
+    try{
+        deliveries = receivingWorkerDb.getDeliveries(employeeId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
-
-    while (query.next()) {
-        int deliveryId = query.value("delivery_id").toInt();
-        QDateTime deliveryDate = query.value("delivery_date").toDateTime();
-        deliveryListView->addDeliveryInfo(deliveryId, deliveryDate);
+    for (const auto& delivery : deliveries) {
+        int deliveryId = delivery[0].toInt();
+        QString deliveryDate = delivery[1];
+        deliveryListView->addDeliveryInfo(deliveryId, QDateTime::fromString(deliveryDate, "dd.MM.yyyy HH:mm"));
     }
 
     mainWindow->showView(deliveryListView);
@@ -137,12 +131,10 @@ void ReceivingWorkerController::handleBackButton() {
 }
 
 void ReceivingWorkerController::handleAssignVehicle() {
-    QSqlQuery query(db);
-    query.prepare("UPDATE vehicles SET employee_id = ?, status = 'zajety' WHERE status = 'wolny' and employee_id is NULL LIMIT 1");
-    query.addBindValue(employeeId);
-
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy przypisywaniu pojazdu");
+    try{
+        receivingWorkerDb.assignVehicle(employeeId);
+    }catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
     start(); // refresh main menu gui
@@ -150,11 +142,10 @@ void ReceivingWorkerController::handleAssignVehicle() {
 
 
 void ReceivingWorkerController::handleFreeVehicle() {
-    QSqlQuery query(db);
-    query.prepare("UPDATE vehicles SET status = 'wolny', employee_id = NULL WHERE employee_id = ?");
-    query.addBindValue(employeeId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy zwalnianiu pojazdu");
+    try{
+        receivingWorkerDb.freeVehicle(employeeId);
+    }catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
     start(); // refresh main menu gui
@@ -164,18 +155,19 @@ void ReceivingWorkerController::handleVerifyOrders() {
     orderListView->clearOrders();   // clear old orders
 
     //Get orders marked as finished ("gotowe")
-    QSqlQuery query(db);
-    query.prepare("SELECT order_id, creation_date, assigned_employee_name FROM view_orders WHERE status = 'gotowe'");
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu listy zamówień");
+    std::vector<std::vector<QString>> orders;
+    try{
+        orders = receivingWorkerDb.verifyOrders();
+    }catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
 
     //Add each order to orderListView
-    while (query.next()) {
-        int orderId = query.value("order_id").toInt();
-        QString employeeName = query.value("assigned_employee_name").toString();
-        QDateTime creationDate = query.value("creation_date").toDateTime();
+    for (const auto& order : orders) {
+        int orderId = order[0].toInt();
+        QString employeeName = order[1];
+        QDateTime creationDate = QDateTime::fromString(order[2], "dd.MM.yyyy HH:mm");
         orderListView->addOrderInfo(orderId, employeeName, creationDate);
     }
 
@@ -183,69 +175,49 @@ void ReceivingWorkerController::handleVerifyOrders() {
 }
 
 void ReceivingWorkerController::handleConfirmOrder(int orderId) {
-    QSqlQuery query(db);
-    query.prepare("UPDATE orders SET status = 'wyslane' WHERE order_id = ?");
-    query.addBindValue(orderId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy potwierdzaniu zamówienia");
+    try{
+        receivingWorkerDb.confirmOrder(orderId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
     handleVerifyOrders(); //Refresh
 }
 
 void ReceivingWorkerController::handleCheckOrder(int orderId) {
-    QSqlQuery query(db);
-    query.prepare("SELECT * FROM view_orders WHERE order_id = ? AND status = \"gotowe\"");
-    query.addBindValue(orderId);
+    orderView->clearOrderItems();
+    try{
+        // Order information
+        std::vector<QString> orderInfo = receivingWorkerDb.getOrderInfo(orderId);
+        orderView->setOrderInfo(orderId, orderInfo[0], orderInfo[1]);
 
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu zamówienia");
-        return;
-    } else if (query.exec() && !query.next()) {
-        QString message = "Brak zamowienia";
-        mainMenuView->viewError(message);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
-
-    // Order information
-    QDateTime date = query.value("creation_date").toDateTime();
-    QString creationDate = date.toString("dd.MM.yyyy HH:mm");   // Format date
-    QString createdByName = query.value("created_by_name").toString();
 
     // Items in order
-    QSqlQuery orderItemsQuery(db);
-    orderItemsQuery.prepare("SELECT * FROM view_order_items WHERE order_id = ?");
-    orderItemsQuery.addBindValue(orderId);
-
-    if (!orderItemsQuery.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu zamówienia");
+    try {
+        std::vector<std::vector<QString>> items = receivingWorkerDb.getOrderItems(orderId);
+        for (const auto& item : items) {
+            orderView->addOrderItem(item[0].toInt(), item[1], item[2].toInt(), item[3].toInt(), item[4].toInt());
+        }
+        mainWindow->showView(orderView);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(e.what());
         return;
-    }
-    orderView->setOrderInfo(orderId, creationDate, createdByName);
-    while (orderItemsQuery.next()) {
-        int itemId = orderItemsQuery.value("item_id").toInt();
-        QString itemName = orderItemsQuery.value("item_name").toString();
-        int quantity = orderItemsQuery.value("quantity").toInt();
-        int pickedQuantity = orderItemsQuery.value("picked_quantity").toInt();
-        int availableQuantity = orderItemsQuery.value("available_quantity").toInt();
-        orderView->addOrderItem(itemId, itemName, quantity, pickedQuantity, availableQuantity);
     }
 
     mainWindow->showView(orderView);
 }
 
 void ReceivingWorkerController::handleOrderUpdate(int orderId, const QMap<int,int>& pickedMap) {
-    QSqlQuery query(db);
-    for (auto it = pickedMap.begin(); it != pickedMap.end(); it++) {
-        query.prepare("UPDATE order_items SET picked_quantity = :picked WHERE item_id = :item_id and order_id = :order_id");
-        query.bindValue(":picked", it.value());
-        query.bindValue(":item_id", it.key());
-        query.bindValue(":order_id", orderId);
-
-        if (!query.exec()) {
-            QString message = "Błąd dla item_id: " + QString::number(it.key());
-            orderView->viewError(message);
+    try {
+        for (auto it = pickedMap.begin(); it != pickedMap.end(); it++) {
+            receivingWorkerDb.updateOrder(orderId, it.key(), it.value());
         }
+    } catch (const std::runtime_error& e) {
+        orderView->viewError(QString::fromStdString(e.what()));
     }
 
     handleVerifyOrders(); // back to viewing all orders
@@ -255,66 +227,57 @@ void ReceivingWorkerController::handleFillDelivery(int deliveryId) {
     deliveryView->clearDeliveryItems();
     deliveryView->setDeliveryId(deliveryId);
 
-    // Get delivery date
-    QSqlQuery deliveryQuery(db);
-    deliveryQuery.prepare("SELECT delivery_date FROM deliveries WHERE delivery_id = ?");
-    deliveryQuery.addBindValue(deliveryId);
-    if (!deliveryQuery.exec() || !deliveryQuery.next()) {
-        mainMenuView->viewError("Nie udało się pobrać informacji o dostawie");
+    //Get delivery date
+    try{
+        QString date = receivingWorkerDb.getDeliveryDate(deliveryId);
+        QDateTime deliveryDate = QDateTime::fromString(date, "dd.MM.yyyy HH:mm");
+        deliveryView->setDeliveryInfo(deliveryId, deliveryDate);
+    }catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
-
-    QDateTime deliveryDate = deliveryQuery.value("delivery_date").toDateTime();
-    deliveryView->setDeliveryInfo(deliveryId, deliveryDate);
 
     // Get delivery items
-    QSqlQuery itemsQuery(db);
-    itemsQuery.prepare("SELECT item_id, item_name, quantity FROM view_delivery_items WHERE delivery_id = ?");
-    itemsQuery.addBindValue(deliveryId);
-    if (!itemsQuery.exec()) {
-        mainMenuView->viewError("Nie udało się pobrać przedmiotów dostawy");
-        return;
-    }
     QSet<int> deliveryItemIds; // Items id in this delivery
+    try{
+        std::vector<std::vector<QString>> deliveryItems= receivingWorkerDb.getDeliveryItems(deliveryId);
+        // Add each delivery item to view
+        for (const auto& item : deliveryItems) {
+            int itemId = item[0].toInt();
+            QString itemName = item[1];
+            int quantity = item[2].toInt();
 
-    // Add each delivery item to view
-    while (itemsQuery.next()) {
-        int itemId = itemsQuery.value("item_id").toInt();
-        QString itemName = itemsQuery.value("item_name").toString();
-        int quantity = itemsQuery.value("quantity").toInt();
-
-        deliveryView->addDeliveryItem(itemId, itemName, quantity);
-        deliveryItemIds.insert(itemId);
+            deliveryView->addDeliveryItem(itemId, itemName, quantity);
+            deliveryItemIds.insert(itemId);
+        }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
+        return;
     }
 
     // Get all items in warehouse
-    QSqlQuery allItemsQuery(db);
-    allItemsQuery.prepare("SELECT item_id, name FROM items ORDER BY name ASC");
-    if (!allItemsQuery.exec()) {
-        mainMenuView->viewError("Nie udało się pobrać listy wszystkich przedmiotów");
-        return;
-    }
-
-    while (allItemsQuery.next()) {
-        int itemId = allItemsQuery.value("item_id").toInt();
-        QString itemName = allItemsQuery.value("name").toString();
-
-        if (!deliveryItemIds.contains(itemId)) {
-            deliveryView->addAvailableItem(itemId, itemName);  // <--- pojedynczo
+    try{
+        std::vector<std::vector<QString>> warehouseItems = receivingWorkerDb.getWarehouseItems();
+        for(const auto& item : warehouseItems) {
+            int itemId = item[0].toInt();
+            QString itemName = item[1];
+            if (!deliveryItemIds.contains(itemId)) {
+                deliveryView->addAvailableItem(itemId, itemName);  // <--- pojedynczo
+            }
         }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
+        return;
     }
     mainWindow->showView(deliveryView);
 }
 
 void ReceivingWorkerController::handleRemoveItem(int deliveryId, int itemId)
 {
-    QSqlQuery query(db);
-    query.prepare("DELETE FROM delivery_items WHERE delivery_id = ? AND item_id = ?");
-    query.addBindValue(deliveryId);
-    query.addBindValue(itemId);
-
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się usunąć przedmiotu");
+    try{
+        receivingWorkerDb.removeItemFromDelivery(deliveryId, itemId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
 
@@ -322,13 +285,10 @@ void ReceivingWorkerController::handleRemoveItem(int deliveryId, int itemId)
 }
 
 void ReceivingWorkerController::handleAddItem(int deliveryId, int itemId) {
-    QSqlQuery query(db);
-    query.prepare("INSERT INTO delivery_items (delivery_id, item_id, quantity) VALUES (?, ?, 0)");
-    query.addBindValue(deliveryId);
-    query.addBindValue(itemId);
-
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się dodać przedmiotu");
+    try{
+        receivingWorkerDb.addItemToDelivery(deliveryId, itemId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
     handleFillDelivery(deliveryId);
@@ -336,16 +296,12 @@ void ReceivingWorkerController::handleAddItem(int deliveryId, int itemId) {
 
 void ReceivingWorkerController::handleSubmitDelivery(int deliveryId, const QMap<int, int> &quantities) {
     QSqlQuery query(db);
-    for (auto it = quantities.begin(); it != quantities.end(); ++it) {
-        int itemId = it.key();
-        int quantity = it.value();
-        query.prepare("UPDATE delivery_items SET quantity = ? WHERE delivery_id = ? AND item_id = ?");
-        query.addBindValue(quantity);
-        query.addBindValue(deliveryId);
-        query.addBindValue(itemId);
-        if (!query.exec()) {
-            mainMenuView->viewError("Błąd aktualizacji item_id " + QString::number(itemId));
-            return;
+    try{
+        for (auto it = quantities.begin(); it != quantities.end(); ++it) {
+            receivingWorkerDb.submitDeliveryItem(deliveryId, it.key(), it.value());
         }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
+        return;
     }
 }

@@ -14,12 +14,14 @@
 #include "../../widgets/warehouseworker/WarehouseWorkerOrderView.h"
 #include "../../widgets/receivingworker/ReceivingWorkerDeliveryListView.h"
 #include "../../widgets/receivingworker/ReceivingWorkerDeliveryView.h"
+#include "../databases/ReceivingWorkerDatabase.h"
 
 class ReceivingWorkerController: public QObject{
     Q_OBJECT
 private:
     int employeeId, jobId;
     QSqlDatabase& db;
+    ReceivingWorkerDatabase& receivingWorkerDb;
     MainWindow* mainWindow;
 
     ReceivingWorkerMainMenuView* mainMenuView;
@@ -30,7 +32,7 @@ private:
 
     void connectButtons();
 public:
-    ReceivingWorkerController(MainWindow* mainWindow, QSqlDatabase& db, int employeeId, int jobId);
+    ReceivingWorkerController(MainWindow* mainWindow, QSqlDatabase& db, ReceivingWorkerDatabase& receivingWorkerDb, int employeeId, int jobId);
     void start();
 
 signals:

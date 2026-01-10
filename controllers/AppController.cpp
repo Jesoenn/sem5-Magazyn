@@ -45,12 +45,13 @@ void AppController::handleLogin(QString user, QString pass) {
 
         if (jobId == 1 && employed){
             warehouseWorkerDB = new WarehouseWorkerDatabase(db);
-            warehouseWorkerController = new WarehouseWorkerController(mainWindow, db, *warehouseWorkerDB, employeeId, jobId);
+            warehouseWorkerController = new WarehouseWorkerController(mainWindow, *warehouseWorkerDB, employeeId, jobId);
             warehouseWorkerController->start();
             //Logout signal
             connect(warehouseWorkerController, &WarehouseWorkerController::logoutRequest, this, &AppController::handleLogout);
         } else if (jobId == 2 && employed){
-            receivingWorkerController = new ReceivingWorkerController(mainWindow, db, employeeId, jobId);
+            receivingWorkerDB = new ReceivingWorkerDatabase(db);
+            receivingWorkerController = new ReceivingWorkerController(mainWindow, db, *receivingWorkerDB, employeeId, jobId);
             receivingWorkerController->start();
             //Logout signal
             connect(receivingWorkerController, &ReceivingWorkerController::logoutRequest, this, &AppController::handleLogout);

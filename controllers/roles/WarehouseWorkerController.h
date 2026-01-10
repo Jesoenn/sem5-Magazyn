@@ -16,8 +16,7 @@ class WarehouseWorkerController: public QObject {
     Q_OBJECT
 private:
     int employeeId, jobId;
-    QSqlDatabase& db;
-    WarehouseWorkerDatabase& warehouseWorkerDb; // TODO: PRZEKAZYWANY JAKO ARGUMENT KONSTRUKTORA
+    WarehouseWorkerDatabase& warehouseWorkerDb;
     MainWindow* mainWindow;
 
     WarehouseWorkerMainMenuView* mainMenuView;
@@ -28,7 +27,7 @@ private:
 
 
 public:
-    WarehouseWorkerController(MainWindow* mainWindow, QSqlDatabase& db, WarehouseWorkerDatabase& warehouseWorkerDb, int employeeId, int jobId);
+    WarehouseWorkerController(MainWindow* mainWindow, WarehouseWorkerDatabase& warehouseWorkerDb, int employeeId, int jobId);
     void start();
 
 signals:

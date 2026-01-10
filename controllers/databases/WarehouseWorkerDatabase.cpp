@@ -3,6 +3,7 @@
 //
 
 #include "WarehouseWorkerDatabase.h"
+#include <QDateTime>
 
 std::vector<QString> WarehouseWorkerDatabase::getEmployeeInfo(int employeeId) {
     QSqlQuery query(db);
@@ -27,7 +28,6 @@ std::vector<QString> WarehouseWorkerDatabase::getEmployeeInfo(int employeeId) {
             employeeInfo.push_back("Unknown");
         }
     }
-
 
     return employeeInfo;
 }
@@ -69,3 +69,92 @@ int WarehouseWorkerDatabase::assignOrder(int orderId, int employeeId) {
     }
     return 0;
 }
+
+std::vector<QString> WarehouseWorkerDatabase::getCurrentOrderInfo(int employeeId) {
+    QSqlQuery query(db);
+    query.prepare("SELECT order_id, creation_date, created_by_name FROM view_orders WHERE assigned_employee_id = ? AND status = \"realizacja\"");
+    query.addBindValue(employeeId);
+
+    if (!query.exec()) {
+        throw std::runtime_error("Database error");
+    }
+
+    if (!query.next()) {
+        throw std::invalid_argument("No active order");
+    }
+
+    std::vector<QString> orderInfo;
+    orderInfo.push_back(query.value("order_id").toString());
+    orderInfo.push_back(query.value("creation_date").toDateTime().toString("dd.MM.yyyy HH:mm"));
+    orderInfo.push_back(query.value("created_by_name").toString());
+
+    return orderInfo;
+}
+
+std::vector<std::vector<QString>> WarehouseWorkerDatabase::getOrderItems(int orderId) {
+    QSqlQuery query(db);
+    query.prepare("SELECT * FROM view_order_items WHERE order_id = ?");
+    query.addBindValue(orderId);
+
+    if (!query.exec()) {
+        throw std::runtime_error("Error while getting order items");
+    }
+
+    std::vector<std::vector<QString>> items;
+
+    while (query.next()) {
+        std::vector<QString> item;
+        item.push_back(query.value("item_id").toString());
+        item.push_back(query.value("item_name").toString());
+        item.push_back(query.value("quantity").toString());
+        item.push_back(query.value("picked_quantity").toString());
+        item.push_back(query.value("available_quantity").toString());
+        items.push_back(item);
+    }
+
+    return items;
+}
+
+void WarehouseWorkerDatabase::orderUpdate(int orderId, int itemId, int quantity) {
+    QSqlQuery query(db);
+
+    query.prepare("UPDATE order_items SET picked_quantity = :picked WHERE item_id = :item_id and order_id = :order_id");
+    query.bindValue(":picked", quantity);
+    query.bindValue(":item_id", itemId);
+    query.bindValue(":order_id", orderId);
+
+    if (!query.exec()) {
+        QString message = "Błąd dla item_id: " + QString::number(itemId);
+        throw std::runtime_error(message.toStdString());
+    }
+}
+
+void WarehouseWorkerDatabase::submitOrder(int employeeId) {
+    QSqlQuery query(db);
+    query.prepare("UPDATE orders SET status = 'gotowe' WHERE assigned_employee_id = ? AND status = 'realizacja'");
+    query.addBindValue(employeeId);
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy zatwierdzaniu zamówienia");
+    }
+}
+
+void WarehouseWorkerDatabase::assignVehicle(int employeeId) {
+    QSqlQuery query(db);
+    query.prepare("UPDATE vehicles SET employee_id = ?, status = 'zajety' WHERE status = 'wolny' and employee_id is NULL LIMIT 1");
+    query.addBindValue(employeeId);
+
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy przypisywaniu pojazdu");
+    }
+}
+
+void WarehouseWorkerDatabase::freeVehicle(int employeeId) {
+    QSqlQuery query(db);
+    query.prepare("UPDATE vehicles SET status = 'wolny', employee_id = NULL WHERE employee_id = ?");
+    query.addBindValue(employeeId);
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy zwalnianiu pojazdu");
+    }
+}
+
+

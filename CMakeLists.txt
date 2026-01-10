@@ -56,7 +56,9 @@ add_executable(Magazyn main.cpp
         widgets/manager/ManagerOrderView.cpp
         widgets/manager/ManagerOrderView.h
         controllers/databases/WarehouseWorkerDatabase.cpp
-        controllers/databases/WarehouseWorkerDatabase.h)
+        controllers/databases/WarehouseWorkerDatabase.h
+        controllers/databases/ReceivingWorkerDatabase.cpp
+        controllers/databases/ReceivingWorkerDatabase.h)
 target_link_libraries(Magazyn
   Qt::Core
   Qt::Gui

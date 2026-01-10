@@ -9,8 +9,8 @@
 #include "WarehouseWorkerController.h"
 
 
-WarehouseWorkerController::WarehouseWorkerController(MainWindow* mainWindow, QSqlDatabase& db, WarehouseWorkerDatabase& warehouseWorkerDb, int employeeId, int jobId):
-    mainWindow(mainWindow), db(db), employeeId(employeeId), jobId(jobId), warehouseWorkerDb(warehouseWorkerDb) {
+WarehouseWorkerController::WarehouseWorkerController(MainWindow* mainWindow, WarehouseWorkerDatabase& warehouseWorkerDb, int employeeId, int jobId):
+    mainWindow(mainWindow), employeeId(employeeId), jobId(jobId), warehouseWorkerDb(warehouseWorkerDb) {
     //Setup views
     mainMenuView = new WarehouseWorkerMainMenuView();
     orderView = new WarehouseWorkerOrderView();
@@ -73,8 +73,6 @@ void WarehouseWorkerController::handleLogout() {
 }
 
 void WarehouseWorkerController::handleNewOrder() {
-    QSqlQuery query(db);
-
     int activeOrders = warehouseWorkerDb.getActiveOrderCount(employeeId);
     if (activeOrders>0){
         mainMenuView->viewError("Masz już aktywne zamówienie do realizacji");
@@ -101,48 +99,26 @@ void WarehouseWorkerController::handleNewOrder() {
 
 
 void WarehouseWorkerController::handleCurrentOrder() {
-    QSqlQuery query(db);
-    query.prepare("SELECT * FROM view_orders WHERE assigned_employee_id = ? AND status = \"realizacja\"");
-    query.addBindValue(employeeId);
-
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu zamówienia");
-        return;
-    } else if (query.exec() && !query.next()) {
-        QString message = "Brak aktywnego zamowienia";
-        mainMenuView->viewError(message);
-        return;
-    }
-
-    // Order information
-    int orderId = query.value("order_id").toInt();
-    QDateTime date = query.value("creation_date").toDateTime();
-    QString creationDate = date.toString("dd.MM.yyyy HH:mm");   // Format date
-    QString createdByName = query.value("created_by_name").toString();
-
-    // Items in order
-    QSqlQuery orderItemsQuery(db);
-    orderItemsQuery.prepare("SELECT * FROM view_order_items WHERE order_id = ?");
-    orderItemsQuery.addBindValue(orderId);
-
-    if (!orderItemsQuery.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu zamówienia");
-        return;
-    }
-
+    std::vector<QString> orderInfo = warehouseWorkerDb.getCurrentOrderInfo(employeeId);
+    int orderId = orderInfo[0].toInt();
+    QString creationDate = orderInfo[1];
+    QString createdByName = orderInfo[2];
     orderView->setOrderInfo(orderId, creationDate, createdByName);
 
-    while (orderItemsQuery.next()) {
-        int itemId = orderItemsQuery.value("item_id").toInt();
-        QString itemName = orderItemsQuery.value("item_name").toString();
-        int quantity = orderItemsQuery.value("quantity").toInt();
-        int pickedQuantity = orderItemsQuery.value("picked_quantity").toInt();
-        int availableQuantity = orderItemsQuery.value("available_quantity").toInt();
+    // Items in order
+    std::vector<std::vector<QString>> items = warehouseWorkerDb.getOrderItems(orderId);
+    for (const auto& item : items) {
+        int itemId = item[0].toInt();
+        QString itemName = item[1];
+        int quantity = item[2].toInt();
+        int pickedQuantity = item[3].toInt();
+        int availableQuantity = item[4].toInt();
+
         orderView->addOrderItem(itemId, itemName, quantity, pickedQuantity, availableQuantity);
     }
-
     mainWindow->showView(orderView);
 }
+
 
 void WarehouseWorkerController::handleBackButton() {
     orderView->clearOrderItems();
@@ -150,28 +126,21 @@ void WarehouseWorkerController::handleBackButton() {
 }
 
 void WarehouseWorkerController::handleOrderUpdate(int orderId, const QMap<int,int>& pickedMap) {
-    QSqlQuery query(db);
-    for (auto it = pickedMap.begin(); it != pickedMap.end(); it++) {
-        query.prepare("UPDATE order_items SET picked_quantity = :picked WHERE item_id = :item_id and order_id = :order_id");
-        query.bindValue(":picked", it.value());
-        query.bindValue(":item_id", it.key());
-        query.bindValue(":order_id", orderId);
-
-        if (!query.exec()) {
-            QString message = "Błąd dla item_id: " + QString::number(it.key());
-            orderView->viewError(message);
+    try {
+        for (auto it = pickedMap.begin(); it != pickedMap.end(); it++) {
+            warehouseWorkerDb.orderUpdate(orderId, it.key(), it.value());
         }
+    } catch (const std::runtime_error& e) {
+        orderView->viewError(QString::fromStdString(e.what()));
     }
-
     handleBackButton(); // back to main menu
 }
 
 void WarehouseWorkerController::handleSubmitNewOrder() {
-    QSqlQuery query(db);
-    query.prepare("UPDATE orders SET status = 'gotowe' WHERE assigned_employee_id = ? AND status = 'realizacja'");
-    query.addBindValue(employeeId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy zatwierdzaniu zamówienia");
+    try{
+        warehouseWorkerDb.submitOrder(employeeId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
 
@@ -179,26 +148,25 @@ void WarehouseWorkerController::handleSubmitNewOrder() {
 }
 
 void WarehouseWorkerController::handleAssignVehicle() {
-    QSqlQuery query(db);
-    query.prepare("UPDATE vehicles SET employee_id = ?, status = 'zajety' WHERE status = 'wolny' and employee_id is NULL LIMIT 1");
-    query.addBindValue(employeeId);
-
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy przypisywaniu pojazdu");
+    try {
+        warehouseWorkerDb.assignVehicle(employeeId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
+
     start(); // refresh main menu gui
 }
 
 
 void WarehouseWorkerController::handleFreeVehicle() {
-    QSqlQuery query(db);
-    query.prepare("UPDATE vehicles SET status = 'wolny', employee_id = NULL WHERE employee_id = ?");
-    query.addBindValue(employeeId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Błąd przy zwalnianiu pojazdu");
+    try{
+        warehouseWorkerDb.freeVehicle(employeeId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
+
     start(); // refresh main menu gui
 }
 

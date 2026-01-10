@@ -18,6 +18,12 @@ public:
     int getActiveOrderCount(int employeeId);
     int getFreeOrder(int employeeId);
     int assignOrder(int orderId, int employeeId);
+    std::vector<QString> getCurrentOrderInfo(int employeeId);
+    std::vector<std::vector<QString>> getOrderItems(int orderId);
+    void orderUpdate(int orderId, int itemId, int quantity);
+    void submitOrder(int employeeId);
+    void assignVehicle(int employeeId);
+    void freeVehicle(int employeeId);
 
 };
 
