@@ -10,8 +10,8 @@
 #include <QDebug>
 
 
-ReceivingWorkerController::ReceivingWorkerController(MainWindow* mainWindow, QSqlDatabase& db, ReceivingWorkerDatabase& receivingWorkerDb, int employeeId, int jobId):
-        mainWindow(mainWindow), db(db), receivingWorkerDb(receivingWorkerDb), employeeId(employeeId), jobId(jobId) {
+ReceivingWorkerController::ReceivingWorkerController(MainWindow* mainWindow, ReceivingWorkerDatabase& receivingWorkerDb, int employeeId, int jobId):
+        mainWindow(mainWindow), receivingWorkerDb(receivingWorkerDb), employeeId(employeeId), jobId(jobId) {
     //Setup views
     mainMenuView = new ReceivingWorkerMainMenuView();
     orderListView = new ReceivingWorkerOrderListView();
@@ -295,7 +295,6 @@ void ReceivingWorkerController::handleAddItem(int deliveryId, int itemId) {
 }
 
 void ReceivingWorkerController::handleSubmitDelivery(int deliveryId, const QMap<int, int> &quantities) {
-    QSqlQuery query(db);
     try{
         for (auto it = quantities.begin(); it != quantities.end(); ++it) {
             receivingWorkerDb.submitDeliveryItem(deliveryId, it.key(), it.value());

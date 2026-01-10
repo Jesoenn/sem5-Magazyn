@@ -15,8 +15,8 @@
 #include <QDebug>
 
 
-ManagerController::ManagerController(MainWindow* mainWindow, QSqlDatabase& db, int employeeId, int jobId):
-    mainWindow(mainWindow), db(db), employeeId(employeeId), jobId(jobId) {
+ManagerController::ManagerController(MainWindow* mainWindow, QSqlDatabase& db, ManagerDatabase& managerDb, int employeeId, int jobId):
+    mainWindow(mainWindow), db(db), managerDb(managerDb), employeeId(employeeId), jobId(jobId) {
     //Setup views
     mainMenuView = new ManagerMainMenuView();
     logsView = new ManagerLogsView();
@@ -35,14 +35,8 @@ ManagerController::ManagerController(MainWindow* mainWindow, QSqlDatabase& db, i
 }
 
 void ManagerController::start() {
-    QSqlQuery query(db);
-    query.prepare("SELECT first_name, last_name, job, vehicle_id FROM view_employees_info WHERE employee_id = ?");
-    query.addBindValue(employeeId);
-    if (query.exec() && query.next()) {
-        mainMenuView->setEmployeeInfo(employeeId, query.value("first_name").toString(), query.value("last_name").toString(), query.value("job").toString());
-        QVariant vehicleVar = query.value("vehicle_id");
-    }
-
+    std::vector<QString> employeeInfo = managerDb.getEmployeeInfo(employeeId);
+    mainMenuView->setEmployeeInfo(employeeId, employeeInfo[1], employeeInfo[2], employeeInfo[3]);
     mainWindow->showView(mainMenuView);
 }
 
@@ -106,77 +100,72 @@ void ManagerController::handleLogout() {
 void ManagerController::handleViewEmployees() {
     employeesView->clearEmployees();
     QMap<int, QString> jobMap;
-    QSqlQuery jobQuery(db);
-    jobQuery.prepare("SELECT job_id, job_name FROM jobs");
-    if (!jobQuery.exec()) {
-        mainMenuView->viewError("Nie udało się pobrać stanowisk");
-        return;
-    }
-    while (jobQuery.next()) {
-        int id = jobQuery.value("job_id").toInt();
-        QString name = jobQuery.value("job_name").toString();
-        jobMap[id] = name;
-    }
-    employeesView->setJobMap(jobMap);
-    QSqlQuery query(db);
-    query.prepare("SELECT employee_id, login, first_name, last_name, job_id, job, employed FROM view_employees");
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się pobrać listy pracowników");
+
+    try{
+        std::vector<std::vector<QString>> jobs = managerDb.getJobs();
+        for (const auto& job : jobs) {
+            int id = job[0].toInt();
+            QString name = job[1];
+            jobMap[id] = name;
+        }
+        employeesView->setJobMap(jobMap);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
 
-    while (query.next()) {
-        int employeeId = query.value("employee_id").toInt();
-        QString login = query.value("login").toString();
-        QString firstName = query.value("first_name").toString();
-        QString lastName = query.value("last_name").toString();
-        int jobId = query.value("job_id").toInt();
-        QString jobName = query.value("job").toString();
-        bool employed = query.value("employed").toBool();
+    try{
+        std::vector<std::vector<QString>> employees = managerDb.getEmployees();
+        for (const auto& emp : employees) {
+            int employeeId = emp[0].toInt();
+            QString login = emp[1];
+            QString firstName = emp[2];
+            QString lastName = emp[3];
+            int jobId = emp[4].toInt();
+            QString jobName = emp[5];
+            bool employed = (emp[6] == "1" || emp[6].toLower() == "true");
 
-        employeesView->addEmployeeRow(employeeId, login, firstName, lastName, jobId, jobName, employed);
+            employeesView->addEmployeeRow(employeeId, login, firstName, lastName, jobId, jobName, employed);
+        }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
+        return;
     }
 
     mainWindow->showView(employeesView);
 }
 
 
-void ManagerController::handleViewOrders()
-{
+void ManagerController::handleViewOrders(){
     ordersListView->clearOrders();
     QMap<int, QString> employeeMap;
-    QSqlQuery empQuery(db);
-    empQuery.prepare("SELECT employee_id, CONCAT(first_name, ' ', last_name) AS full_name FROM employees WHERE job_id = 1 AND employed = TRUE");
-    if (!empQuery.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu listy pracowników");
-        return;
-    }
 
-    while (empQuery.next()) {
-        int id = empQuery.value("employee_id").toInt();
-        QString fullName = empQuery.value("full_name").toString();
-        employeeMap[id] = fullName;
+    try{
+        std::vector<std::vector<QString>> employees = managerDb.getEmployeesIdToName();
+        for (const auto& employee : employees) {
+            int id = employee[0].toInt();
+            QString name = employee[1];
+            employeeMap[id] = name;
+        }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
+        return;
     }
     ordersListView->setEmployeeMap(employeeMap);
 
-    QSqlQuery orderQuery(db);
-    orderQuery.prepare("SELECT order_id, creation_date, created_by_name, "
-                       "assigned_employee_id "
-                       "FROM view_orders ORDER BY order_id DESC");
+    try{
+        std::vector<std::vector<QString>> ordersInfo = managerDb.getOrdersInfo();
+        for (const auto& order : ordersInfo) {
+            int orderId = order[0].toInt();
+            QString creatorName = order[1];
+            QString createdAt = order[2];
+            int assignedEmployeeId = order[3].isEmpty() ? -1 : order[3].toInt();
 
-    if (!orderQuery.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu zamówień");
+            ordersListView->addOrderRow(orderId, assignedEmployeeId, creatorName, createdAt);
+        }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
-    }
-    while (orderQuery.next()) {
-        int orderId = orderQuery.value("order_id").toInt();
-        QDateTime createdAtDate = orderQuery.value("creation_date").toDateTime();
-        QString createdAt = createdAtDate.toString("dd.MM.yyyy HH:mm");
-        QString creatorName = orderQuery.value("created_by_name").toString();
-
-        int assignedEmployeeId = orderQuery.value("assigned_employee_id").isNull() ? -1: orderQuery.value("assigned_employee_id").toInt();
-
-        ordersListView->addOrderRow(orderId, assignedEmployeeId, creatorName, createdAt);
     }
     mainWindow->showView(ordersListView);
 }
@@ -185,35 +174,33 @@ void ManagerController::handleViewOrders()
 void ManagerController::handleViewVehicles() {
     vehiclesView->clearVehicles();
     QMap<int, QString> employeeMap; // employee_id -> "Imię Nazwisko"
-    QSqlQuery empQuery(db);
-    empQuery.prepare("SELECT employee_id, CONCAT(first_name, ' ', last_name) AS full_name "
-                     "FROM employees WHERE job_id IN (1, 2)");
-    if (!empQuery.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu pracowników: " + empQuery.lastError().text());
+
+    try{
+        std::vector<std::vector<QString>> employees = managerDb.getEmployeesCanHaveVehicle();
+        for (const auto& employee : employees) {
+            int id = employee[0].toInt();
+            QString name = employee[1];
+            employeeMap[id] = name;
+        }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
-    }
-    while (empQuery.next()) {
-        int id = empQuery.value("employee_id").toInt();
-        QString name = empQuery.value("full_name").toString();
-        employeeMap[id] = name;
     }
     vehiclesView->setEmployeeMap(employeeMap);
 
-    QSqlQuery vehQuery(db);
-    vehQuery.prepare("SELECT vehicle_id, status, employee_id, employee_name FROM view_vehicles");
-    if (!vehQuery.exec()) {
-        mainMenuView->viewError("Błąd przy pobieraniu pojazdów: " + vehQuery.lastError().text());
+    try{
+        std::vector<std::vector<QString>> vehiclesInfo = managerDb.getVehiclesInfo();
+        for (const auto& vehicle : vehiclesInfo) {
+            int vehicleId = vehicle[0].toInt();
+            QString status = vehicle[1];
+            int assignedEmployeeId = vehicle[2]=="null" ? -1 : vehicle[2].toInt();
+
+            vehiclesView->addVehicleRow(vehicleId, status, assignedEmployeeId);
+        }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
-    while (vehQuery.next()) {
-        int vehicleId = vehQuery.value("vehicle_id").toInt();
-        QString status = vehQuery.value("status").toString();
-        int assignedEmployeeId = vehQuery.value("employee_id").isNull() ? -1 :
-                                 vehQuery.value("employee_id").toInt();
-
-        vehiclesView->addVehicleRow(vehicleId, status, assignedEmployeeId);
-    }
-
     mainWindow->showView(vehiclesView);
 }
 
@@ -221,21 +208,16 @@ void ManagerController::handleViewVehicles() {
 void ManagerController::handleViewEventLog() {
     logsView->clearLogs();
 
-    QSqlQuery query(db);
-    query.prepare(R"(
-        SELECT event_type, employee_name
-        FROM view_logs
-        ORDER BY created_at DESC
-    )");
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się pobrać wpisów dziennika");
+    try{
+        std::vector<std::vector<QString>> eventLog = managerDb.getEventLog();
+        for (const auto& logEntry : eventLog) {
+            QString eventType = logEntry[0];
+            QString creator = logEntry[1];
+            logsView->addLogEntry(eventType, creator);
+        }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
-    }
-    while (query.next()) {
-        QString eventType = query.value("event_type").toString();
-        QString creator = query.value("employee_name").toString();
-        if (creator.isEmpty()) creator = "Brak"; //if null
-        logsView->addLogEntry(eventType, creator);
     }
     mainWindow->showView(logsView);
 }
@@ -249,71 +231,46 @@ void ManagerController::handleSaveVehicle(int vehicleId, const QString &status, 
     QSqlQuery query(db);
     QString newStatus = status;
     // -1 is NULL
-    if (employeeId != -1) {
-        query.prepare("SELECT vehicle_id FROM vehicles WHERE employee_id = :employeeId AND vehicle_id != :vehicleId");
-        query.bindValue(":employeeId", employeeId);
-        query.bindValue(":vehicleId", vehicleId);
-        if (!query.exec()) {
-            mainMenuView->viewError("Błąd przy sprawdzaniu przypisania pracownika");
-            return;
+    try{
+        if (employeeId != -1){
+            bool ans = managerDb.isEmployeeAssignedToVehicle(employeeId, vehicleId);
+            if (ans) {
+                mainMenuView->viewError("Wybrany pracownik jest już przypisany do pojazdu");
+                return;
+            }
+            newStatus = "zajety";
         }
-        if (query.next()) { // There is already assigned vehicle
-            mainMenuView->viewError("Wybrany pracownik jest już przypisany do innego pojazdu");
-            return;
-        }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
+        return;
+    }
 
-        newStatus = "zajety";
-    }
     //Update vehicle
-    query.prepare("UPDATE vehicles SET status = :status, employee_id = :employeeId WHERE vehicle_id = :vehicleId");
-    query.bindValue(":status", newStatus);
-    if (employeeId != -1) {
-        query.bindValue(":employeeId", employeeId);
-    } else {
-        query.bindValue(":employeeId", QVariant()); // NULL
-    }
-    query.bindValue(":vehicleId", vehicleId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się zapisać pojazdu.");
+    try{
+        managerDb.assignVehicleToEmployee(vehicleId, employeeId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
     handleViewVehicles();
 }
 
 void ManagerController::handleFireEmployee(int employeeId) {
-    QSqlQuery query(db);
-    // Remove assigned vehicle
-    query.prepare("UPDATE vehicles SET employee_id = NULL, status = 'wolny' WHERE employee_id = :employeeId");
-    query.bindValue(":employeeId", employeeId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się usunąć przypisania do pojazdu");
+    try{
+        managerDb.fireEmployee(employeeId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
-
-    query.prepare("UPDATE employees SET employed = false WHERE employee_id = :employeeId");
-    query.bindValue(":employeeId", employeeId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się zwolnić pracownika");
-        return;
-    }
-
     handleViewEmployees();
 }
 
 
 void ManagerController::handleModifyEmployee(int employeeId, const QString &login, const QString &firstName, const QString &lastName, bool employed) {
-    QSqlQuery query(db);
-    query.prepare(R"( UPDATE employees SET login = :login, first_name = :firstName,
-            last_name = :lastName, employed = :employed WHERE employee_id = :employeeId )");
-    query.bindValue(":login", login);
-    query.bindValue(":firstName", firstName);
-    query.bindValue(":lastName", lastName);
-    query.bindValue(":employed", employed);
-    query.bindValue(":employeeId", employeeId);
-
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się zmodyfikować danych pracownika");
-        return;
+    try{
+        managerDb.modifyEmployee(employeeId, login, firstName, lastName, employed);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
     }
 
     handleViewEmployees();

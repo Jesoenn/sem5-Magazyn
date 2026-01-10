@@ -58,7 +58,9 @@ add_executable(Magazyn main.cpp
         controllers/databases/WarehouseWorkerDatabase.cpp
         controllers/databases/WarehouseWorkerDatabase.h
         controllers/databases/ReceivingWorkerDatabase.cpp
-        controllers/databases/ReceivingWorkerDatabase.h)
+        controllers/databases/ReceivingWorkerDatabase.h
+        controllers/databases/ManagerDatabase.cpp
+        controllers/databases/ManagerDatabase.h)
 target_link_libraries(Magazyn
   Qt::Core
   Qt::Gui

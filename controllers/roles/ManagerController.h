@@ -14,12 +14,14 @@
 #include "../../widgets/manager/ManagerEmployeesView.h"
 #include "../../widgets/manager/ManagerOrdersListView.h"
 #include "../../widgets/manager/ManagerOrderView.h"
+#include "../databases/ManagerDatabase.h"
 
 class ManagerController: public QObject{
     Q_OBJECT
 private:
     int employeeId, jobId;
     QSqlDatabase& db;
+    ManagerDatabase& managerDb;
     MainWindow* mainWindow;
 
     ManagerMainMenuView* mainMenuView;
@@ -31,7 +33,7 @@ private:
 
     void connectButtons();
 public:
-    ManagerController(MainWindow* mainWindow, QSqlDatabase& db, int employeeId, int jobId);
+    ManagerController(MainWindow* mainWindow, QSqlDatabase& db, ManagerDatabase& managerDb, int employeeId, int jobId);
     void start();
 
 signals:

@@ -20,7 +20,6 @@ class ReceivingWorkerController: public QObject{
     Q_OBJECT
 private:
     int employeeId, jobId;
-    QSqlDatabase& db;
     ReceivingWorkerDatabase& receivingWorkerDb;
     MainWindow* mainWindow;
 
@@ -32,7 +31,7 @@ private:
 
     void connectButtons();
 public:
-    ReceivingWorkerController(MainWindow* mainWindow, QSqlDatabase& db, ReceivingWorkerDatabase& receivingWorkerDb, int employeeId, int jobId);
+    ReceivingWorkerController(MainWindow* mainWindow, ReceivingWorkerDatabase& receivingWorkerDb, int employeeId, int jobId);
     void start();
 
 signals:
