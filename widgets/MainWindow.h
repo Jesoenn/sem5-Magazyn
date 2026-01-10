@@ -18,6 +18,7 @@ public:
     MainWindow(QWidget* parent = nullptr);
     void showView(QWidget* widget);
     void addView(QWidget* widget);
+    void removeView(QWidget* view);
     void loadStyle();
 };
 

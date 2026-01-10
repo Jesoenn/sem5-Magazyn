@@ -10,12 +10,14 @@
 #include "../../widgets/MainWindow.h"
 #include "../../widgets/warehouseworker/WarehouseWorkerMainMenuView.h"
 #include "../../widgets/warehouseworker/WarehouseWorkerOrderView.h"
+#include "../databases/WarehouseWorkerDatabase.h"
 
 class WarehouseWorkerController: public QObject {
     Q_OBJECT
 private:
     int employeeId, jobId;
     QSqlDatabase& db;
+    WarehouseWorkerDatabase& warehouseWorkerDb; // TODO: PRZEKAZYWANY JAKO ARGUMENT KONSTRUKTORA
     MainWindow* mainWindow;
 
     WarehouseWorkerMainMenuView* mainMenuView;
@@ -26,7 +28,7 @@ private:
 
 
 public:
-    WarehouseWorkerController(MainWindow* mainWindow, QSqlDatabase& db, int employeeId, int jobId);
+    WarehouseWorkerController(MainWindow* mainWindow, QSqlDatabase& db, WarehouseWorkerDatabase& warehouseWorkerDb, int employeeId, int jobId);
     void start();
 
 signals:

@@ -34,3 +34,7 @@ void MainWindow::loadStyle() {
     qDebug() << "Styl zaladowany: " << stylePath;
 }
 
+void MainWindow::removeView(QWidget *view) {
+    stack->removeWidget(view);
+}
+

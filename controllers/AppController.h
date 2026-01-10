@@ -25,6 +25,8 @@ private:
     ReceivingWorkerController* receivingWorkerController;
     ManagerController* managerController;
 
+    WarehouseWorkerDatabase* warehouseWorkerDB;
+
 public:
     ~AppController();
     AppController();

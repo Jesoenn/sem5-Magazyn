@@ -50,7 +50,13 @@ add_executable(Magazyn main.cpp
         widgets/manager/ManagerVehiclesView.cpp
         widgets/manager/ManagerVehiclesView.h
         widgets/manager/ManagerEmployeesView.cpp
-        widgets/manager/ManagerEmployeesView.h)
+        widgets/manager/ManagerEmployeesView.h
+        widgets/manager/ManagerOrdersListView.cpp
+        widgets/manager/ManagerOrdersListView.h
+        widgets/manager/ManagerOrderView.cpp
+        widgets/manager/ManagerOrderView.h
+        controllers/databases/WarehouseWorkerDatabase.cpp
+        controllers/databases/WarehouseWorkerDatabase.h)
 target_link_libraries(Magazyn
   Qt::Core
   Qt::Gui

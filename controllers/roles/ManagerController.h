@@ -12,6 +12,8 @@
 #include "../../widgets/manager/ManagerLogsView.h"
 #include "../../widgets/manager/ManagerVehiclesView.h"
 #include "../../widgets/manager/ManagerEmployeesView.h"
+#include "../../widgets/manager/ManagerOrdersListView.h"
+#include "../../widgets/manager/ManagerOrderView.h"
 
 class ManagerController: public QObject{
     Q_OBJECT
@@ -24,6 +26,8 @@ private:
     ManagerLogsView* logsView;
     ManagerVehiclesView* vehiclesView;
     ManagerEmployeesView* employeesView;
+    ManagerOrdersListView* ordersListView;
+    ManagerOrderView* orderView;
 
     void connectButtons();
 public:
@@ -49,6 +53,11 @@ private slots:
     void handleModifyEmployee(int employeeId, const QString& login, const QString& firstName, const QString& lastName, bool employed);
     void handleAddEmployee(const QString& login, const QString& firstName, const QString& lastName, int jobId, const QString& password);
 
+    //OrdersListView
+    void handleAssignEmployee(int orderId, int employeeId);
+    void handleModifyOrder(int orderId);
+    void handleDeleteOrder(int orderId);
+    void handleCreateOrder(int employeeId);
 
     //All
     void handleBackButton();

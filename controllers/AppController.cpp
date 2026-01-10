@@ -44,7 +44,8 @@ void AppController::handleLogin(QString user, QString pass) {
         int jobId = query.value("job_id").toInt();
 
         if (jobId == 1 && employed){
-            warehouseWorkerController = new WarehouseWorkerController(mainWindow, db, employeeId, jobId);
+            warehouseWorkerDB = new WarehouseWorkerDatabase(db);
+            warehouseWorkerController = new WarehouseWorkerController(mainWindow, db, *warehouseWorkerDB, employeeId, jobId);
             warehouseWorkerController->start();
             //Logout signal
             connect(warehouseWorkerController, &WarehouseWorkerController::logoutRequest, this, &AppController::handleLogout);

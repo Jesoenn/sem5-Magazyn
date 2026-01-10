@@ -22,11 +22,15 @@ ManagerController::ManagerController(MainWindow* mainWindow, QSqlDatabase& db, i
     logsView = new ManagerLogsView();
     vehiclesView = new ManagerVehiclesView();
     employeesView = new ManagerEmployeesView();
+    ordersListView = new ManagerOrdersListView();
+    orderView = new ManagerOrderView();
 
     mainWindow->addView(mainMenuView);
     mainWindow->addView(logsView);
     mainWindow->addView(vehiclesView);
     mainWindow->addView(employeesView);
+    mainWindow->addView(ordersListView);
+    mainWindow->addView(orderView);
     connectButtons();
 }
 
@@ -62,9 +66,40 @@ void ManagerController::connectButtons() {
     connect(employeesView, &ManagerEmployeesView::fireEmployee, this, &ManagerController::handleFireEmployee);
     connect(employeesView, &ManagerEmployeesView::modifyEmployee, this, &ManagerController::handleModifyEmployee);
     connect(employeesView, &ManagerEmployeesView::addEmployee, this, &ManagerController::handleAddEmployee);
+
+    //OrdersListView
+    connect(ordersListView, &ManagerOrdersListView::backToMainMenu, this, &ManagerController::handleBackButton);
+    connect(ordersListView, &ManagerOrdersListView::assignEmployee, this, &ManagerController::handleAssignEmployee);
+    connect(ordersListView, &ManagerOrdersListView::createOrder, this, &ManagerController::handleCreateOrder);
+    connect(ordersListView, &ManagerOrdersListView::deleteOrder, this, &ManagerController::handleDeleteOrder);
+    connect(ordersListView, &ManagerOrdersListView::modifyOrder, this, &ManagerController::handleModifyOrder);
+
+    //OrderView
+    connect(orderView, &ManagerOrderView::backToOrdersList, this, &ManagerController::handleBackButton);
 }
 
 void ManagerController::handleLogout() {
+    mainWindow->removeView(mainMenuView);
+    mainWindow->removeView(logsView);
+    mainWindow->removeView(vehiclesView);
+    mainWindow->removeView(employeesView);
+    mainWindow->removeView(ordersListView);
+    mainWindow->removeView(orderView);
+
+    delete mainMenuView;
+    delete logsView;
+    delete vehiclesView;
+    delete employeesView;
+    delete ordersListView;
+    delete orderView;
+
+    mainMenuView = nullptr;
+    logsView = nullptr;
+    vehiclesView = nullptr;
+    employeesView = nullptr;
+    ordersListView = nullptr;
+    orderView = nullptr;
+
     emit logoutRequest();
 }
 
@@ -106,9 +141,46 @@ void ManagerController::handleViewEmployees() {
 }
 
 
-void ManagerController::handleViewOrders() {
-    //TODO
+void ManagerController::handleViewOrders()
+{
+    ordersListView->clearOrders();
+    QMap<int, QString> employeeMap;
+    QSqlQuery empQuery(db);
+    empQuery.prepare("SELECT employee_id, CONCAT(first_name, ' ', last_name) AS full_name FROM employees WHERE job_id = 1 AND employed = TRUE");
+    if (!empQuery.exec()) {
+        mainMenuView->viewError("Błąd przy pobieraniu listy pracowników");
+        return;
+    }
+
+    while (empQuery.next()) {
+        int id = empQuery.value("employee_id").toInt();
+        QString fullName = empQuery.value("full_name").toString();
+        employeeMap[id] = fullName;
+    }
+    ordersListView->setEmployeeMap(employeeMap);
+
+    QSqlQuery orderQuery(db);
+    orderQuery.prepare("SELECT order_id, creation_date, created_by_name, "
+                       "assigned_employee_id "
+                       "FROM view_orders ORDER BY order_id DESC");
+
+    if (!orderQuery.exec()) {
+        mainMenuView->viewError("Błąd przy pobieraniu zamówień");
+        return;
+    }
+    while (orderQuery.next()) {
+        int orderId = orderQuery.value("order_id").toInt();
+        QDateTime createdAtDate = orderQuery.value("creation_date").toDateTime();
+        QString createdAt = createdAtDate.toString("dd.MM.yyyy HH:mm");
+        QString creatorName = orderQuery.value("created_by_name").toString();
+
+        int assignedEmployeeId = orderQuery.value("assigned_employee_id").isNull() ? -1: orderQuery.value("assigned_employee_id").toInt();
+
+        ordersListView->addOrderRow(orderId, assignedEmployeeId, creatorName, createdAt);
+    }
+    mainWindow->showView(ordersListView);
 }
+
 
 void ManagerController::handleViewVehicles() {
     vehiclesView->clearVehicles();
@@ -268,6 +340,125 @@ void ManagerController::handleAddEmployee(const QString &login, const QString &f
     }
     handleViewEmployees();
 }
+
+void ManagerController::handleAssignEmployee(int orderId, int employeeId) {
+    QSqlQuery query(db);
+    query.prepare("UPDATE orders SET assigned_employee_id = :employeeId WHERE order_id = :orderId");
+    query.bindValue(":orderId", orderId);
+    query.bindValue(":employeeId", employeeId);
+    if (!query.exec()) {
+        mainMenuView->viewError("Nie udało się przypisać pracownika");
+        return;
+    }
+    handleViewOrders();
+}
+
+void ManagerController::handleModifyOrder(int orderId) {
+    //TODO ZROBIC TO OD NOWA
+    // Wyczyść poprzednie pozycje
+    orderView->clearItems();
+
+    // --- Pobranie informacji o zamówieniu ---
+    QSqlQuery orderQuery(db);
+    orderQuery.prepare(R"(SELECT o.order_id, o.created_by_id, CONCAT(c.first_name, ' ', c.last_name) AS created_by_name,
+                                o.creation_date
+                         FROM orders o
+                         JOIN employees c ON o.created_by_id = c.employee_id
+                         WHERE o.order_id = :orderId)");
+    orderQuery.bindValue(":orderId", orderId);
+
+    if (!orderQuery.exec() || !orderQuery.next()) {
+        mainMenuView->viewError("Nie udało się pobrać danych zamówienia");
+        return;
+    }
+
+    QString creatorName = orderQuery.value("created_by_name").toString();
+    QString createdAt = orderQuery.value("creation_date").toDateTime().toString("yyyy-MM-dd HH:mm");
+
+    orderView->setOrderInfo(orderId, creatorName, createdAt);
+
+    // --- Pobranie pozycji zamówienia ---
+    QSqlQuery itemsQuery(db);
+    itemsQuery.prepare(R"(SELECT oi.order_item_id, oi.item_id, i.name AS item_name, oi.quantity
+                         FROM order_items oi
+                         JOIN items i ON oi.item_id = i.item_id
+                         WHERE oi.order_id = :orderId)");
+    itemsQuery.bindValue(":orderId", orderId);
+
+    if (!itemsQuery.exec()) {
+        mainMenuView->viewError("Nie udało się pobrać pozycji zamówienia");
+        return;
+    }
+
+    QMap<int, QString> availableItems; // item_id -> item_name
+    QSqlQuery itemsMapQuery(db);
+    itemsMapQuery.prepare("SELECT item_id, name FROM items");
+    if (itemsMapQuery.exec()) {
+        while (itemsMapQuery.next()) {
+            int itemId = itemsMapQuery.value("item_id").toInt();
+            QString name = itemsMapQuery.value("name").toString();
+            availableItems[itemId] = name;
+        }
+    }
+
+    orderView->setAvailableItems(availableItems);
+
+    while (itemsQuery.next()) {
+        int orderItemId = itemsQuery.value("order_item_id").toInt();
+        int itemId = itemsQuery.value("item_id").toInt();
+        QString itemName = itemsQuery.value("item_name").toString();
+        int quantity = itemsQuery.value("quantity").toInt();
+
+        orderView->addOrderItemRow(orderItemId, itemId, itemName, quantity);
+    }
+
+    mainWindow->showView(orderView);
+}
+
+
+void ManagerController::handleDeleteOrder(int orderId) {
+    QSqlQuery query(db);
+    query.prepare("SELECT status FROM orders WHERE order_id = :orderId");
+    query.bindValue(":orderId", orderId);
+    if (!query.exec()) {
+        mainMenuView->viewError("Nie udało się sprawdzić statusu zamówienia");
+        return;
+    }
+    query.next();
+    QString status = query.value("status").toString();
+    if (status != "nowe") {
+        mainMenuView->viewError("Można usuwać tylko zamówienia o statusie 'nowe'");
+        return;
+    }
+    query.prepare("DELETE FROM order_items WHERE order_id = :orderId");
+    query.bindValue(":orderId", orderId);
+    if (!query.exec()) {
+        mainMenuView->viewError("Nie udało się usunąć pozycji zamówienia");
+        return;
+    }
+    query.prepare("DELETE FROM orders WHERE order_id = :orderId");
+    query.bindValue(":orderId", orderId);
+    if (!query.exec()) {
+        mainMenuView->viewError("Nie udało się usunąć zamówienia");
+        return;
+    }
+    handleViewOrders();
+}
+
+void ManagerController::handleCreateOrder(int employeeId) {
+    QSqlQuery query(db);
+    query.prepare(R"(INSERT INTO orders (created_by_id, assigned_employee_id)
+        VALUES (:creator, :assigned))");
+
+    query.bindValue(":creator", this->employeeId);
+    query.bindValue(":assigned", employeeId);
+    if (!query.exec()) {
+        mainMenuView->viewError("Nie udało się utworzyć zamówienia");
+        return;
+    }
+    handleViewOrders();
+}
+
 
 
 

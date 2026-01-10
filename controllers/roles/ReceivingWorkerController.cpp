@@ -80,6 +80,23 @@ void ReceivingWorkerController::connectButtons() {
 }
 
 void ReceivingWorkerController::handleLogout() {
+    mainWindow->removeView(mainMenuView);
+    mainWindow->removeView(orderListView);
+    mainWindow->removeView(orderView);
+    mainWindow->removeView(deliveryListView);
+    mainWindow->removeView(deliveryView);
+
+    delete mainMenuView;
+    delete orderListView;
+    delete orderView;
+    delete deliveryListView;
+    delete deliveryView;
+
+    mainMenuView = nullptr;
+    orderListView = nullptr;
+    orderView = nullptr;
+    deliveryListView = nullptr;
+    deliveryView = nullptr;
     emit logoutRequest();
 }
 
