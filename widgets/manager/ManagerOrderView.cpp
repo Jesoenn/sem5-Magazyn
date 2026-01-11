@@ -79,18 +79,24 @@ void ManagerOrderView::addOrderItemRow(int orderItemId, int itemId, const QStrin
 
     itemRows[orderItemId] = {itemNameLabel, quantityEdit, modifyButton, deleteButton, itemId};
 
-    connect(modifyButton, &QPushButton::clicked, [this, orderItemId, quantityEdit]() {
-        int newQty = quantityEdit->text().toInt();
-        if (newQty <= 0) {
-            QMessageBox::warning(this, "Błąd", "Ilość musi być większa od 0");
-            return;
-        }
-        emit modifyOrderItem(orderItemId, newQty);
-    });
+    connect(modifyButton, &QPushButton::clicked,
+            [this, orderItemId, quantityEdit]() {
+                if (orderId < 0) return;
+                int newQty = quantityEdit->text().toInt();
+                if (newQty <= 0) {
+                    QMessageBox::warning(this, "Błąd", "Ilość musi być większa od 0");
+                    return;
+                }
+                emit modifyOrderItem(orderId, orderItemId, newQty);
+            });
 
-    connect(deleteButton, &QPushButton::clicked, [this, orderItemId]() {
-        emit deleteOrderItem(orderItemId);
-    });
+    connect(deleteButton, &QPushButton::clicked,
+            [this, orderItemId]() {
+
+                if (orderId < 0) return;
+
+                emit deleteOrderItem(orderId, orderItemId);
+            });
 }
 
 void ManagerOrderView::clearItems() {
@@ -103,6 +109,7 @@ void ManagerOrderView::clearItems() {
 }
 
 void ManagerOrderView::setOrderInfo(int orderId, const QString& createdBy, const QString& createdAt) {
+    this->orderId = orderId;
     orderInfoLabel->setText(QString("Zamówienie #%1 | Stworzone przez: %2 | Data: %3").arg(orderId).arg(createdBy).arg(createdAt));
 }
 
@@ -125,13 +132,15 @@ void ManagerOrderView::setUpAddItemWidget() {
     mainLayout->addWidget(addItemWidget);
 
     connect(addItemButton, &QPushButton::clicked, [this]() {
-        int qty = newQuantityEdit->text().toInt();
-        int itemId = newItemCombo->currentData().toInt();
-        emit addOrderItem(itemId, qty);
+        if (orderId < 0) return;
 
-        newQuantityEdit->clear();
-        newItemCombo->setCurrentIndex(0);
+        int qty = newQuantityEdit->text().toInt();
+        if (qty <= 0) return;
+
+        int itemId = newItemCombo->currentData().toInt();
+        emit addOrderItem(orderId, itemId, qty);
     });
+
 }
 
 void ManagerOrderView::setAvailableItems(const QMap<int, QString>& itemsMap) {

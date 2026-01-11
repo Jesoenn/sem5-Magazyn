@@ -18,6 +18,7 @@
 class ManagerOrderView : public QWidget {
 Q_OBJECT
 private:
+    int orderId=-1;
     QPushButton* backButton;
     QLabel* orderInfoLabel;
     QVBoxLayout* mainLayout;
@@ -57,9 +58,9 @@ public:
 
 signals:
     void backToOrdersList();
-    void modifyOrderItem(int orderItemId, int newQuantity);
-    void deleteOrderItem(int orderItemId);
-    void addOrderItem(int itemId, int quantity);
+    void modifyOrderItem(int orderId, int orderItemId, int newQuantity);
+    void deleteOrderItem(int orderId, int orderItemId);
+    void addOrderItem(int orderId, int itemId, int quantity);
 
 private slots:
     void handleBackButton();

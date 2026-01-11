@@ -28,9 +28,16 @@ public:
     void fireEmployee(int employeeId);
     void modifyEmployee(int employeeId, const QString login, const QString firstName, const QString lastName, bool employed);
     void addEmployee(const QString &login, const QString &firstName, const QString &lastName, int jobId, const QString &password);
-
-
-
+    void assignEmployeeToOrder(int employeeId, int orderId);
+    void deleteOrder(int orderId);
+    void createOrder(int creatorId, int assignedEmployeeId);
+    void modifyOrderItem(int orderId, int orderItemId, int newQuantity);
+    void deleteOrderItem(int orderId, int orderItemId);
+    void returnAllPickedQuantities(int orderId, int orderItemId);
+    void addOrderItem(int orderId, int itemId, int quantity);
+    std::vector<QString> getOrderInfo(int orderId);
+    std::vector<std::vector<QString>> getOrderItems(int orderId);
+    std::vector<std::vector<QString>> getItems();
 
 };
 

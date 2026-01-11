@@ -241,5 +241,199 @@ void ManagerDatabase::modifyEmployee(int employeeId, const QString login, const 
 }
 
 void ManagerDatabase::addEmployee(const QString &login, const QString &firstName, const QString &lastName, int jobId, const QString &password) {
+    QSqlQuery query(db);
+    query.prepare(R"( INSERT INTO employees (login, first_name, last_name, job_id, employed, password)
+        VALUES (:login, :firstName, :lastName, :jobId, TRUE, :password))");
+    query.bindValue(":login", login);
+    query.bindValue(":firstName", firstName);
+    query.bindValue(":lastName", lastName);
+    query.bindValue(":jobId", jobId);
+    query.bindValue(":password", password);
 
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy dodawaniu nowego pracownika");
+    }
 }
+
+void ManagerDatabase::assignEmployeeToOrder(int employeeId, int orderId) {
+    QSqlQuery query(db);
+    query.prepare("UPDATE orders SET assigned_employee_id = :employeeId WHERE order_id = :orderId");
+    query.bindValue(":orderId", orderId);
+    query.bindValue(":employeeId", employeeId);
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy przypisywaniu pracownika do zamówienia");
+    }
+}
+
+void ManagerDatabase::deleteOrder(int orderId) {
+    QSqlQuery query(db);
+    query.prepare("SELECT status FROM orders WHERE order_id = :orderId");
+    query.bindValue(":orderId", orderId);
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy sprawdzaniu statusu zamówienia");
+    }
+    query.next();
+    QString status = query.value("status").toString();
+    if (status != "nowe") {
+        throw std::runtime_error("Można usuwać tylko zamówienia o statusie 'nowe'");
+    }
+    query.prepare("DELETE FROM order_items WHERE order_id = :orderId");
+    query.bindValue(":orderId", orderId);
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy usuwaniu pozycji zamówienia");
+    }
+    query.prepare("DELETE FROM orders WHERE order_id = :orderId");
+    query.bindValue(":orderId", orderId);
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy usuwaniu zamówienia");
+    }
+}
+
+void ManagerDatabase::createOrder(int creatorId, int assignedEmployeeId) {
+    QSqlQuery query(db);
+    query.prepare(R"(INSERT INTO orders (created_by_id, assigned_employee_id)
+        VALUES (:creator, :assigned))");
+
+    query.bindValue(":creator", creatorId);
+    query.bindValue(":assigned", assignedEmployeeId);
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy tworzeniu zamówienia");
+    }
+}
+
+void ManagerDatabase::modifyOrderItem(int orderId, int orderItemId, int newQuantity) {
+    QSqlQuery query(db);
+
+    query.prepare("UPDATE order_items SET quantity = :quantity WHERE order_id = :order_id AND order_item_id = :order_item_id");
+    query.bindValue(":quantity", newQuantity);
+    query.bindValue(":order_id", orderId);
+    query.bindValue(":order_item_id", orderItemId);
+
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd modyfikacji pozycji zamówienia");
+    }
+}
+
+void ManagerDatabase::deleteOrderItem(int orderId, int orderItemId) {
+    QSqlQuery query(db);
+
+    query.prepare("DELETE FROM order_items WHERE order_id = :order_id AND order_item_id = :order_item_id");
+    query.bindValue(":order_id", orderId);
+    query.bindValue(":order_item_id", orderItemId);
+
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy usuwaniu pozycji zamówienia");
+    }
+
+    if (query.numRowsAffected() == 0) {
+        throw std::runtime_error("Nie znaleziono pozycji do usunięcia");
+    }
+}
+
+void ManagerDatabase::returnAllPickedQuantities(int orderId, int orderItemId) {
+    QSqlQuery query(db);
+    //Return order picked quantity do items
+    query.prepare("UPDATE items "
+                  "SET quantity = quantity + (SELECT picked_quantity FROM order_items WHERE order_id = :order_id AND order_item_id = :order_item_id) "
+                  "WHERE item_id = (SELECT item_id FROM order_items WHERE order_id = :order_id AND order_item_id = :order_item_id)");
+
+    query.bindValue(":order_id", orderId);
+    query.bindValue(":order_item_id", orderItemId);
+
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy zwracaniu ilości pozycji do magazynu");
+    }
+}
+
+void ManagerDatabase::addOrderItem(int orderId, int itemId, int quantity) {
+    QSqlQuery query(db);
+
+    query.prepare("INSERT INTO order_items (order_id, item_id, quantity, picked_quantity) "
+                  "VALUES (:order_id, :item_id, :quantity, 0)");
+
+    query.bindValue(":order_id", orderId);
+    query.bindValue(":item_id", itemId);
+    query.bindValue(":quantity", quantity);
+
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy dodawaniu nowej pozycji do zamówienia");
+    }
+}
+
+std::vector<QString> ManagerDatabase::getOrderInfo(int orderId) {
+    QSqlQuery query(db);
+    query.prepare(R"(SELECT o.order_id, o.created_by_id,
+                            CONCAT(c.first_name, ' ', c.last_name) AS created_by_name,
+                            o.creation_date
+                     FROM orders o
+                     JOIN employees c ON o.created_by_id = c.employee_id
+                     WHERE o.order_id = :orderId)");
+    query.bindValue(":orderId", orderId);
+
+    std::vector<QString> orderInfo;
+
+    if (!query.exec()) {
+        throw std::runtime_error("Błąd przy pobieraniu danych zamówienia");
+    }
+
+    if (query.next()) {
+        orderInfo.push_back(query.value("order_id").toString());
+        orderInfo.push_back(query.value("created_by_id").toString());
+        orderInfo.push_back(query.value("created_by_name").toString());
+        orderInfo.push_back(query.value("creation_date").toDateTime().toString("yyyy-MM-dd HH:mm"));
+    } else {
+        throw std::runtime_error("Nie znaleziono zamówienia o podanym ID");
+    }
+
+    return orderInfo;
+}
+
+std::vector<std::vector<QString>> ManagerDatabase::getOrderItems(int orderId) {
+    std::vector<std::vector<QString>> items;
+
+    QSqlQuery query(db);
+    query.prepare(R"(SELECT oi.order_item_id, oi.item_id, i.name AS item_name, oi.quantity
+                     FROM order_items oi
+                     JOIN items i ON oi.item_id = i.item_id
+                     WHERE oi.order_id = :orderId)");
+    query.bindValue(":orderId", orderId);
+
+    if (!query.exec()) {
+        throw std::runtime_error("Nie udało się pobrać pozycji zamówienia");
+    }
+
+    while (query.next()) {
+        std::vector<QString> row;
+        row.push_back(query.value("order_item_id").toString());
+        row.push_back(query.value("item_id").toString());
+        row.push_back(query.value("item_name").toString());
+        row.push_back(query.value("quantity").toString());
+
+        items.push_back(row);
+    }
+
+    return items;
+}
+
+std::vector<std::vector<QString>> ManagerDatabase::getItems() {
+    std::vector<std::vector<QString>> items;
+
+    QSqlQuery query(db);
+    query.prepare("SELECT item_id, name FROM items");
+
+    if (!query.exec()) {
+        throw std::runtime_error("Nie udało się pobrać listy towarów");
+    }
+
+    while (query.next()) {
+        std::vector<QString> row;
+        row.push_back(query.value("item_id").toString());
+        row.push_back(query.value("name").toString());
+        items.push_back(row);
+    }
+
+    return items;
+}
+
+
+

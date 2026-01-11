@@ -69,7 +69,10 @@ void ManagerController::connectButtons() {
     connect(ordersListView, &ManagerOrdersListView::modifyOrder, this, &ManagerController::handleModifyOrder);
 
     //OrderView
-    connect(orderView, &ManagerOrderView::backToOrdersList, this, &ManagerController::handleBackButton);
+    connect(orderView, &ManagerOrderView::backToOrdersList,this, &ManagerController::handleBackButton);
+    connect(orderView, &ManagerOrderView::modifyOrderItem,this, &ManagerController::handleModifyOrderItem);
+    connect(orderView, &ManagerOrderView::deleteOrderItem,this, &ManagerController::handleDeleteOrderItem);
+    connect(orderView, &ManagerOrderView::addOrderItem,this, &ManagerController::handleAddOrderItem);
 }
 
 void ManagerController::handleLogout() {
@@ -282,140 +285,117 @@ void ManagerController::handleAddEmployee(const QString &login, const QString &f
         return;
     }
 
-    QSqlQuery query(db);
-    query.prepare(R"( INSERT INTO employees (login, first_name, last_name, job_id, employed, password)
-        VALUES (:login, :firstName, :lastName, :jobId, TRUE, :password))");
-    query.bindValue(":login", login);
-    query.bindValue(":firstName", firstName);
-    query.bindValue(":lastName", lastName);
-    query.bindValue(":jobId", jobId);
-    query.bindValue(":password", password);
-
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się dodać pracownika");
+    try{
+        managerDb.addEmployee(login, firstName, lastName, jobId, password);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
+
     handleViewEmployees();
 }
 
 void ManagerController::handleAssignEmployee(int orderId, int employeeId) {
-    QSqlQuery query(db);
-    query.prepare("UPDATE orders SET assigned_employee_id = :employeeId WHERE order_id = :orderId");
-    query.bindValue(":orderId", orderId);
-    query.bindValue(":employeeId", employeeId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się przypisać pracownika");
+    try{
+        managerDb.assignEmployeeToOrder(employeeId, orderId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
     handleViewOrders();
 }
 
 void ManagerController::handleModifyOrder(int orderId) {
-    //TODO ZROBIC TO OD NOWA
-    // Wyczyść poprzednie pozycje
     orderView->clearItems();
 
-    // --- Pobranie informacji o zamówieniu ---
-    QSqlQuery orderQuery(db);
-    orderQuery.prepare(R"(SELECT o.order_id, o.created_by_id, CONCAT(c.first_name, ' ', c.last_name) AS created_by_name,
-                                o.creation_date
-                         FROM orders o
-                         JOIN employees c ON o.created_by_id = c.employee_id
-                         WHERE o.order_id = :orderId)");
-    orderQuery.bindValue(":orderId", orderId);
-
-    if (!orderQuery.exec() || !orderQuery.next()) {
-        mainMenuView->viewError("Nie udało się pobrać danych zamówienia");
+    try{
+        std::vector<QString> orderInfo = managerDb.getOrderInfo(orderId);
+        orderView->setOrderInfo(orderId, orderInfo[2], orderInfo[3]);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
 
-    QString creatorName = orderQuery.value("created_by_name").toString();
-    QString createdAt = orderQuery.value("creation_date").toDateTime().toString("yyyy-MM-dd HH:mm");
+    std::vector<std::vector<QString>> orderItems;
+    try {
+        orderItems = managerDb.getOrderItems(orderId);
+        for( const auto& item : orderItems) {
+            int orderItemId = item[0].toInt();
+            int itemId = item[1].toInt();
+            QString itemName = item[2];
+            int quantity = item[3].toInt();
 
-    orderView->setOrderInfo(orderId, creatorName, createdAt);
-
-    // --- Pobranie pozycji zamówienia ---
-    QSqlQuery itemsQuery(db);
-    itemsQuery.prepare(R"(SELECT oi.order_item_id, oi.item_id, i.name AS item_name, oi.quantity
-                         FROM order_items oi
-                         JOIN items i ON oi.item_id = i.item_id
-                         WHERE oi.order_id = :orderId)");
-    itemsQuery.bindValue(":orderId", orderId);
-
-    if (!itemsQuery.exec()) {
-        mainMenuView->viewError("Nie udało się pobrać pozycji zamówienia");
+            orderView->addOrderItemRow(orderItemId, itemId, itemName, quantity);
+        }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
 
     QMap<int, QString> availableItems; // item_id -> item_name
-    QSqlQuery itemsMapQuery(db);
-    itemsMapQuery.prepare("SELECT item_id, name FROM items");
-    if (itemsMapQuery.exec()) {
-        while (itemsMapQuery.next()) {
-            int itemId = itemsMapQuery.value("item_id").toInt();
-            QString name = itemsMapQuery.value("name").toString();
-            availableItems[itemId] = name;
+    try {
+        std::vector<std::vector<QString>> items = managerDb.getItems();
+        for (const auto& item : items) {
+            int id = item[0].toInt();
+            QString name = item[1];
+            availableItems[id] = name;
         }
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
+        return;
     }
-
     orderView->setAvailableItems(availableItems);
-
-    while (itemsQuery.next()) {
-        int orderItemId = itemsQuery.value("order_item_id").toInt();
-        int itemId = itemsQuery.value("item_id").toInt();
-        QString itemName = itemsQuery.value("item_name").toString();
-        int quantity = itemsQuery.value("quantity").toInt();
-
-        orderView->addOrderItemRow(orderItemId, itemId, itemName, quantity);
-    }
-
     mainWindow->showView(orderView);
 }
 
 
 void ManagerController::handleDeleteOrder(int orderId) {
-    QSqlQuery query(db);
-    query.prepare("SELECT status FROM orders WHERE order_id = :orderId");
-    query.bindValue(":orderId", orderId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się sprawdzić statusu zamówienia");
-        return;
-    }
-    query.next();
-    QString status = query.value("status").toString();
-    if (status != "nowe") {
-        mainMenuView->viewError("Można usuwać tylko zamówienia o statusie 'nowe'");
-        return;
-    }
-    query.prepare("DELETE FROM order_items WHERE order_id = :orderId");
-    query.bindValue(":orderId", orderId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się usunąć pozycji zamówienia");
-        return;
-    }
-    query.prepare("DELETE FROM orders WHERE order_id = :orderId");
-    query.bindValue(":orderId", orderId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się usunąć zamówienia");
+    try{
+        managerDb.deleteOrder(orderId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
     handleViewOrders();
 }
 
 void ManagerController::handleCreateOrder(int employeeId) {
-    QSqlQuery query(db);
-    query.prepare(R"(INSERT INTO orders (created_by_id, assigned_employee_id)
-        VALUES (:creator, :assigned))");
-
-    query.bindValue(":creator", this->employeeId);
-    query.bindValue(":assigned", employeeId);
-    if (!query.exec()) {
-        mainMenuView->viewError("Nie udało się utworzyć zamówienia");
+    try{
+        managerDb.createOrder(this->employeeId, employeeId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
         return;
     }
+
     handleViewOrders();
 }
 
+void ManagerController::handleModifyOrderItem(int orderId, int orderItemId, int newQuantity) {
+    try {
+        managerDb.modifyOrderItem(orderId, orderItemId, newQuantity);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(e.what());
+    }
+    handleModifyOrder(orderId);
+}
 
+void ManagerController::handleDeleteOrderItem(int orderId, int orderItemId) {
+    try {
+        managerDb.returnAllPickedQuantities(orderId, orderItemId);
+        managerDb.deleteOrderItem(orderId, orderItemId);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
+    }
+    handleModifyOrder(orderId);
+}
+
+void ManagerController::handleAddOrderItem(int orderId, int itemId, int quantity) {
+    try {
+        managerDb.addOrderItem(orderId, itemId, quantity);
+    } catch (const std::runtime_error& e) {
+        mainMenuView->viewError(QString::fromStdString(e.what()));
+    }
+    handleModifyOrder(orderId);
+}
 
 

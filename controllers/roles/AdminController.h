@@ -8,7 +8,8 @@
 
 #include <QObject>
 
-class AdminController {
+class AdminController: public QObject{
+    Q_OBJECT
 
 };
 

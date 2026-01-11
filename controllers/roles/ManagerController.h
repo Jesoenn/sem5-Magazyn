@@ -61,6 +61,11 @@ private slots:
     void handleDeleteOrder(int orderId);
     void handleCreateOrder(int employeeId);
 
+    //OrderView
+    void handleModifyOrderItem(int orderId, int orderItemId, int newQuantity);
+    void handleDeleteOrderItem(int orderId, int orderItemId);
+    void handleAddOrderItem(int orderId, int itemId, int quantity);
+
     //All
     void handleBackButton();
 
