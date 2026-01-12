@@ -145,6 +145,14 @@ void ManagerEmployeesView::setUpAddEmployeeWidget() {
     newPasswordEdit->setEchoMode(QLineEdit::Password);
     addButton = new QPushButton("Dodaj", addEmployeeWidget);
 
+    // Neeeded for unit tests
+    newLoginEdit->setObjectName("newLoginEdit");
+    newFirstNameEdit->setObjectName("newFirstNameEdit");
+    newLastNameEdit->setObjectName("newLastNameEdit");
+    newPasswordEdit->setObjectName("newPasswordEdit");
+    newJobCombo->setObjectName("newJobCombo");
+    addButton->setObjectName("addButton");
+
     fieldsLayout->addWidget(newLoginEdit);
     fieldsLayout->addWidget(newFirstNameEdit);
     fieldsLayout->addWidget(newLastNameEdit);
