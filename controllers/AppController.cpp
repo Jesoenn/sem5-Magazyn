@@ -61,6 +61,14 @@ void AppController::handleLogin(QString user, QString pass) {
             managerController->start();
             //Logout signal
             connect(managerController, &ManagerController::logoutRequest, this, &AppController::handleLogout);
+        } else if (jobId == 4 && employed){
+            adminDB = new AdminDatabase(db);
+            adminController = new AdminController(mainWindow, db, *adminDB, employeeId, jobId);
+            adminController->start();
+            //Logout signal
+            connect(adminController, &AdminController::logoutRequest, this, &AppController::handleLogout);
+        } else {
+            loginView->loginFailed();
         }
 
     } else {
@@ -87,6 +95,7 @@ AppController::~AppController() {
     delete warehouseWorkerController;
     delete receivingWorkerController;
     delete managerController;
+    delete adminController;
 }
 
 void AppController::handleLogout() {
@@ -102,5 +111,10 @@ void AppController::handleLogout() {
         delete managerController;
         managerController = nullptr;
     }
+    else if (adminController != nullptr){
+        delete adminController;
+        adminController = nullptr;
+    }
+
     mainWindow->showView(loginView);
 }

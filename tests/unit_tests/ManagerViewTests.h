@@ -13,9 +13,9 @@ class ManagerViewTests: public QObject {
 Q_OBJECT
 
 private slots:
-    void testAddEmployee();
-    void testSaveVehicle();
-    void testModifyOrderItem();
+    void testAddEmployee(); // test dodania pracownika UI
+    void testSaveVehicle(); // test modyfikacji przypisania pojazdu
+    void testModifyOrderItem(); // test modyfikacji zamowienia
 };
 
 

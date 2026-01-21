@@ -61,7 +61,11 @@ add_executable(Magazyn main.cpp
         controllers/databases/ReceivingWorkerDatabase.cpp
         controllers/databases/ReceivingWorkerDatabase.h
         controllers/databases/ManagerDatabase.cpp
-        controllers/databases/ManagerDatabase.h)
+        controllers/databases/ManagerDatabase.h
+        controllers/databases/AdminDatabase.cpp
+        controllers/databases/AdminDatabase.h
+        widgets/admin/AdminMainMenuView.cpp
+        widgets/admin/AdminMainMenuView.h)
 target_link_libraries(Magazyn
   Qt::Core
   Qt::Gui
@@ -209,6 +213,12 @@ add_executable(FunctionalTests
         tests/functional_tests/ReceivingWorkerFunctionalTest.h
         tests/functional_tests/ManagerFunctionalTest.cpp
         tests/functional_tests/ManagerFunctionalTest.h
+        controllers/databases/AdminDatabase.cpp
+        controllers/databases/AdminDatabase.h
+        widgets/admin/AdminMainMenuView.cpp
+        widgets/admin/AdminMainMenuView.h
+        widgets/admin/AdminEmployeesView.cpp
+        widgets/admin/AdminEmployeesView.h
 )
 
 target_link_libraries(FunctionalTests

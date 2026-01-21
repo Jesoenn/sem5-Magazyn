@@ -80,6 +80,14 @@ void ManagerEmployeesView::addEmployeeRow(int employeeId, const QString& login, 
         lastNameEdit->setReadOnly(true);
         employedCombo->setEnabled(false);
     }
+    if (isAdmin && jobId != 4) {
+        fireButton->setEnabled(true);
+        modifyButton->setEnabled(true);
+        loginEdit->setReadOnly(false);
+        firstNameEdit->setReadOnly(false);
+        lastNameEdit->setReadOnly(false);
+        employedCombo->setEnabled(true);
+    }
 
     rowLayout->addWidget(idLabel);
     rowLayout->addWidget(loginEdit);
@@ -137,8 +145,11 @@ void ManagerEmployeesView::setUpAddEmployeeWidget() {
     newLastNameEdit = new QLineEdit(addEmployeeWidget);
     newJobCombo = new QComboBox(addEmployeeWidget);
     for (auto it = jobIdToName.begin(); it != jobIdToName.end(); ++it) {
-        if (it.key() != 1 && it.key() != 2)
+        if (it.key() != 1 && it.key() != 2 && !isAdmin){
             continue;
+        } else if (it.key() == 4 && isAdmin){
+            continue;
+        }
         newJobCombo->addItem(it.value(), it.key());
     }
     newPasswordEdit = new QLineEdit(addEmployeeWidget);
@@ -182,5 +193,9 @@ void ManagerEmployeesView::setJobMap(const QMap<int, QString>& jobMap) {
         setUpAddEmployeeWidget();
         hireWidgetCreated = true;
     }
+}
+
+void ManagerEmployeesView::setAdmin(bool isAdmin) {
+    this->isAdmin = isAdmin;
 }
 

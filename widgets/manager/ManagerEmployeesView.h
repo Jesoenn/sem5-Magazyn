@@ -33,6 +33,7 @@ private:
     QLineEdit* newPasswordEdit;
     QPushButton* addButton;
     bool hireWidgetCreated = false;
+    bool isAdmin;
 
     struct EmployeeRow {
         QLabel* employeeIdLabel;
@@ -60,6 +61,7 @@ public:
     void addEmployeeRow(int employeeId, const QString& login, const QString& firstName, const QString& lastName, int jobId, const QString& jobName, bool employed);
     void clearEmployees();
     void setJobMap(const QMap<int, QString>& jobMap);
+    void setAdmin(bool isAdmin);
 
 signals:
     void backToMainMenu();

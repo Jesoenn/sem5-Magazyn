@@ -14,6 +14,7 @@
 #include "roles/ReceivingWorkerController.h"
 #include "roles/ManagerController.h"
 #include "databases/ReceivingWorkerDatabase.h"
+#include "roles/AdminController.h"
 
 class AppController: public QObject {
 private:
@@ -25,10 +26,12 @@ private:
     WarehouseWorkerController* warehouseWorkerController;
     ReceivingWorkerController* receivingWorkerController;
     ManagerController* managerController;
+    AdminController* adminController;
 
     WarehouseWorkerDatabase* warehouseWorkerDB;
     ReceivingWorkerDatabase* receivingWorkerDB;
     ManagerDatabase* managerDB;
+    AdminDatabase* adminDB;
 
 public:
     ~AppController();
